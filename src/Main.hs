@@ -1,18 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE ViewPatterns #-}
 
 module Main where
 
 import qualified SDL
 import qualified SDL.Primitive as SDLP
 
-data GameState       = Menu | Editor | Game | Quit deriving (Eq)
-data GameData        = GameData GameState
-data SdlData         = SdlData SdlGraphicsData
-data SdlGraphicsData = SdlGraphicsData
-                     { sdlWindow   :: SDL.Window
-                     , sdlSurface  :: SDL.Surface
-                     , sdlRenderer :: SDL.Renderer }
+import Types
+import Globals
 
 main :: IO ()
 main = do
@@ -49,12 +43,12 @@ handleEvent e gd =
         _ -> gd
 
 runLogic :: GameData -> GameData
-runLogic = id
+runLogic gd = gd
 
 render :: SdlData -> GameData -> IO ()
 render sdlData gameData = do
     let (SdlData (SdlGraphicsData _ _ r)) = sdlData
-    SDL.rendererDrawColor r SDL.$= (SDL.V4 0 0 0 255)
+    SDL.rendererDrawColor r SDL.$= editorBackgroundColor
     SDL.clear r
     SDLP.thickLine r (SDL.V2 10 15) (SDL.V2 10 120) 3 (SDL.V4 255 255 255 255)
     SDL.present r

@@ -23,5 +23,5 @@ executable hsminibrain
                        sdl2, sdl2-gfx, sdl2-image, sdl2-mixer, sdl2-ttf,
                        vector
   hs-source-dirs:      src
-  other-modules:       Types, Globals
+  other-modules:       Types, Globals, Render
   default-language:    Haskell2010

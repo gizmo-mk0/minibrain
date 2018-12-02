@@ -23,10 +23,27 @@ instance Pin InputPin where
 instance Pin OutputPin where
     getConnector (OutputPin c _) = c
 
-data GameState       = Menu | Editor | Game | Quit deriving (Eq)
-data GameData        = GameData GameState
+data GameScene       = Menu MenuData
+                     | Briefing BriefingData
+                     | Editor EditorData
+                     | Simulation SimulationData
+                     | Quit
+data MenuData        = MenuData
+data BriefingData    = BriefingData
+data EditorData      = EditorData
+                     { perceptrons :: [Perceptron] }
+data SimulationData  = SimulationData
+data GameData        = GameData GameScene
 data SdlData         = SdlData SdlGraphicsData
 data SdlGraphicsData = SdlGraphicsData
                      { sdlWindow   :: SDL.Window
                      , sdlSurface  :: SDL.Surface
                      , sdlRenderer :: SDL.Renderer }
+
+instance Eq GameScene where
+    Menu       _ == Menu       _ = True
+    Briefing   _ == Briefing   _ = True
+    Editor     _ == Editor     _ = True
+    Simulation _ == Simulation _ = True
+    Quit         == Quit         = True
+    _            == _            = False

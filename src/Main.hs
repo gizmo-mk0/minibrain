@@ -7,6 +7,7 @@ import qualified SDL.Primitive as SDLP
 
 import Types
 import Globals
+import Render
 
 main :: IO ()
 main = do
@@ -22,13 +23,14 @@ initializeEnvironment = do
     return (SdlData (SdlGraphicsData window surface renderer))
 
 initializeGame :: GameData
-initializeGame = GameData Menu
+initializeGame = GameData (Editor (EditorData []))
 
 runGameLoop :: SdlData -> GameData -> IO ()
 runGameLoop sdlData gameData = do
     events <- SDL.pollEvents
-    let newGameData@(GameData newGameState) = runLogic $ foldl (flip handleEvent) gameData events
-    render sdlData gameData
+    let newGameData@(GameData newGameState) =
+            runLogic $ foldl (flip handleEvent) gameData events
+    render gameData sdlData
     if newGameState == Quit
         then return ()
         else runGameLoop sdlData newGameData
@@ -44,11 +46,3 @@ handleEvent e gd =
 
 runLogic :: GameData -> GameData
 runLogic gd = gd
-
-render :: SdlData -> GameData -> IO ()
-render sdlData gameData = do
-    let (SdlData (SdlGraphicsData _ _ r)) = sdlData
-    SDL.rendererDrawColor r SDL.$= editorBackgroundColor
-    SDL.clear r
-    SDLP.thickLine r (SDL.V2 10 15) (SDL.V2 10 120) 3 (SDL.V4 255 255 255 255)
-    SDL.present r

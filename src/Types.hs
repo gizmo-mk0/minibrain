@@ -1,49 +1,27 @@
 {-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Types where
 
+import Control.Monad.IO.Class (MonadIO(..))
+import Control.Monad.Reader (ReaderT(..), MonadReader)
+import Control.Monad.State.Strict (StateT(..), MonadState)
+import Control.Exception.Safe (MonadThrow, MonadCatch)
+
 import qualified SDL
+import GHC.Word (Word8(..))
 
-data Perceptron = forall a . Pin a => Perceptron
-                { id       :: Int
-                , position :: (SDL.V2 Int)
-                , pins     :: [a] }
+newtype Minibrain a = Minibrain (ReaderT Config (StateT Vars IO) a)
+    deriving (Applicative, Functor, Monad, MonadIO, MonadReader Config,
+              MonadState Vars, MonadThrow, MonadCatch)
 
-data InputPin = InputPin Connector Perceptron
-data OutputPin = OutputPin Connector Perceptron
+data Config = Config
+data Vars = Vars
 
-data Connector = Connector OutputPin InputPin
+type Color = SDL.V4 Word8
 
-class Pin a where
-    getConnector :: a -> Connector
-
-instance Pin InputPin where
-    getConnector (InputPin c _) = c
-
-instance Pin OutputPin where
-    getConnector (OutputPin c _) = c
-
-data GameScene       = Menu MenuData
-                     | Briefing BriefingData
-                     | Editor EditorData
-                     | Simulation SimulationData
-                     | Quit
-data MenuData        = MenuData
-data BriefingData    = BriefingData
-data EditorData      = EditorData
-                     { perceptrons :: [Perceptron] }
-data SimulationData  = SimulationData
-data GameData        = GameData GameScene
-data SdlData         = SdlData SdlGraphicsData
-data SdlGraphicsData = SdlGraphicsData
-                     { sdlWindow   :: SDL.Window
-                     , sdlSurface  :: SDL.Surface
-                     , sdlRenderer :: SDL.Renderer }
-
-instance Eq GameScene where
-    Menu       _ == Menu       _ = True
-    Briefing   _ == Briefing   _ = True
-    Editor     _ == Editor     _ = True
-    Simulation _ == Simulation _ = True
-    Quit         == Quit         = True
-    _            == _            = False
+-- data GameScene       = Menu MenuData
+--                      | Briefing BriefingData
+--                      | Editor EditorData
+--                      | Simulation SimulationData
+--                      | Quit

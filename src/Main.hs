@@ -6,8 +6,8 @@ import qualified SDL
 import qualified SDL.Primitive as SDLP
 
 import Control.Monad (unless)
-import Control.Monad.Reader (runReaderT)
-import Control.Monad.State.Strict (evalStateT)
+import Control.Monad.Reader (runReaderT, ask)
+import Control.Monad.State.Strict (evalStateT, gets, modify)
 
 import Types
 import Globals
@@ -38,15 +38,34 @@ runMinibrain config gameData (Minibrain m) =
 mainLoop :: Minibrain ()
 mainLoop = do
     -- Collect input
+    updateInput
     -- Scene logic
     -- Render
     renderScene
     -- Decide next scene
-    let quit = False
+    scene <- gets (currentScene . sceneData)
+    let quit = scene == Quit
     unless quit mainLoop
 
-renderScene :: Minibrain()
-renderScene = undefined
+updateInput :: Minibrain ()
+updateInput = do
+    events <- SDL.pollEvents
+    let newGameData = \e gd ->
+            case SDL.eventPayload e of
+                SDL.KeyboardEvent kbe ->
+                    case SDL.keyboardEventKeysym kbe of
+                        SDL.Keysym _ SDL.KeycodeEscape _ ->
+                            gd {sceneData = (sceneData gd) {currentScene = Quit}}
+                        _ -> gd
+                _ -> gd
+    mapM_ (\e -> modify (newGameData e)) events
+
+renderScene :: Minibrain ()
+renderScene = do
+    (Config w r) <- ask
+    SDL.rendererDrawColor r SDL.$= editorBackgroundColor
+    SDL.clear r
+    SDL.present r
 
 -- runGameLoop :: SdlData -> GameData -> IO ()
 -- runGameLoop sdlData gameData = do

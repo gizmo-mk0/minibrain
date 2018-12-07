@@ -17,40 +17,36 @@ main = do
     -- Init SDL
     SDL.initialize [SDL.InitVideo] -- TODO catch SDLException
     window   <- SDL.createWindow "MiniBrain" SDL.defaultWindow
-    surface  <- SDL.getWindowSurface window
     renderer <- SDL.createRenderer window (-1) SDL.defaultRenderer
     -- Load resources
-    let cfg = Config
-        vars = Vars
+    let cfg = Config window renderer
+        gameData = initData
     -- Run main loop
-    runMinibrain cfg vars mainLoop
+    runMinibrain cfg gameData mainLoop
     -- Free resources
     -- Uninitialize SDL
     SDL.destroyWindow window
     SDL.quit
 
-runMinibrain :: Config -> Vars -> Minibrain a -> IO a
-runMinibrain config vars (Minibrain m) = evalStateT (runReaderT m config) vars
+initData :: GameData
+initData = GameData (SceneData Title TitleData BriefingData EditorData SimulationData) CameraData InputData
+
+runMinibrain :: Config -> GameData -> Minibrain a -> IO a
+runMinibrain config gameData (Minibrain m) =
+    evalStateT (runReaderT m config) gameData
 
 mainLoop :: Minibrain ()
 mainLoop = do
     -- Collect input
     -- Scene logic
     -- Render
+    renderScene
     -- Decide next scene
     let quit = False
     unless quit mainLoop
 
--- initializeEnvironment :: IO SdlData
--- initializeEnvironment = do
---     SDL.initialize [SDL.InitVideo] -- TODO catch SDLException
---     window   <- SDL.createWindow "MiniBrain" SDL.defaultWindow
---     surface  <- SDL.getWindowSurface window
---     renderer <- SDL.createRenderer window (-1) SDL.defaultRenderer
---     return (SdlData (SdlGraphicsData window surface renderer))
-
--- initializeGame :: GameData
--- initializeGame = GameData (Editor (EditorData []))
+renderScene :: Minibrain()
+renderScene = undefined
 
 -- runGameLoop :: SdlData -> GameData -> IO ()
 -- runGameLoop sdlData gameData = do

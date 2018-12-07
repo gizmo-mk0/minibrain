@@ -6,6 +6,8 @@ import qualified SDL
 import qualified SDL.Primitive as SDLP
 
 import Control.Monad (unless)
+import Control.Monad.Reader (runReaderT)
+import Control.Monad.State.Strict (evalStateT)
 
 import Types
 import Globals
@@ -19,18 +21,17 @@ main = do
     renderer <- SDL.createRenderer window (-1) SDL.defaultRenderer
     -- Load resources
     let cfg = Config
+        vars = Vars
     -- Run main loop
-    runMinibrain cfg mainLoop
+    runMinibrain cfg vars mainLoop
     -- Free resources
     -- Uninitialize SDL
     SDL.destroyWindow window
     SDL.quit
 
-runMinibrain _ = undefined
+runMinibrain :: Config -> Vars -> Minibrain a -> IO a
+runMinibrain config vars (Minibrain m) = evalStateT (runReaderT m config) vars
 
--- :: MonadReader Config m, MonadState Vars m, Audio m, AudioSfx m, Logger m,
--- Clock m, CameraControl m, Renderer m, HasInput m, Title m, Play m, Pause m,
--- GameOver m
 mainLoop :: Minibrain ()
 mainLoop = do
     -- Collect input

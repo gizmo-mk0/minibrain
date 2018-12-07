@@ -5,11 +5,12 @@ module Main where
 import qualified SDL
 import qualified SDL.Primitive as SDLP
 
-import Control.Monad (unless)
+import Control.Monad (unless, when)
 import Control.Monad.Reader (runReaderT, ask)
 import Control.Monad.State.Strict (evalStateT, gets, modify)
 
 import Types
+import Input
 import Globals
 
 main :: IO ()
@@ -29,7 +30,9 @@ main = do
     SDL.quit
 
 initData :: GameData
-initData = GameData (SceneData Title TitleData BriefingData EditorData SimulationData) CameraData InputData
+initData = GameData (SceneData Title TitleData BriefingData EditorData SimulationData)
+                    CameraData
+                    defaultInputData
 
 runMinibrain :: Config -> GameData -> Minibrain a -> IO a
 runMinibrain config gameData (Minibrain m) =
@@ -40,6 +43,7 @@ mainLoop = do
     -- Collect input
     updateInput
     -- Scene logic
+    advanceScene
     -- Render
     renderScene
     -- Decide next scene
@@ -50,15 +54,16 @@ mainLoop = do
 updateInput :: Minibrain ()
 updateInput = do
     events <- SDL.pollEvents
-    let newGameData = \e gd ->
-            case SDL.eventPayload e of
-                SDL.KeyboardEvent kbe ->
-                    case SDL.keyboardEventKeysym kbe of
-                        SDL.Keysym _ SDL.KeycodeEscape _ ->
-                            gd {sceneData = (sceneData gd) {currentScene = Quit}}
-                        _ -> gd
-                _ -> gd
-    mapM_ (\e -> modify (newGameData e)) events
+    mapM_ (\e -> modify (\gd@(GameData _ _ inpDat) ->
+                    gd{inputData = modifyInput inpDat e})) events
+
+advanceScene :: Minibrain ()
+advanceScene = do
+    inp <- gets inputData
+    when (isButtonDown inp ButtonEsc) $ changeScene Quit
+
+changeScene :: Scene -> Minibrain ()
+changeScene s = modify (\gd@(GameData sd _ _) -> gd {sceneData = sd {currentScene = s}})
 
 renderScene :: Minibrain ()
 renderScene = do
@@ -66,25 +71,3 @@ renderScene = do
     SDL.rendererDrawColor r SDL.$= editorBackgroundColor
     SDL.clear r
     SDL.present r
-
--- runGameLoop :: SdlData -> GameData -> IO ()
--- runGameLoop sdlData gameData = do
---     events <- SDL.pollEvents
---     let newGameData@(GameData newGameState) =
---             runLogic $ foldl (flip handleEvent) gameData events
---     render gameData sdlData
---     if newGameState == Quit
---         then return ()
---         else runGameLoop sdlData newGameData
-
--- handleEvent :: SDL.Event -> GameData -> GameData
--- handleEvent e gd =
---     case SDL.eventPayload e of
---         SDL.KeyboardEvent kbe ->
---             case SDL.keyboardEventKeysym kbe of
---                 SDL.Keysym _ SDL.KeycodeEscape _ -> GameData Quit
---                 _ -> gd
---         _ -> gd
-
--- runLogic :: GameData -> GameData
--- runLogic gd = gd

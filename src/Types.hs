@@ -7,8 +7,12 @@ import Control.Monad.IO.Class (MonadIO(..))
 import Control.Monad.Reader (ReaderT(..), MonadReader(..))
 import Control.Monad.State.Strict (StateT(..), MonadState(..))
 
+import qualified Data.Map
+
 import qualified SDL
 import GHC.Word (Word8(..))
+
+import Input
 
 type Color = SDL.V4 Word8
 
@@ -34,7 +38,7 @@ data Scene = Title
            | Editor
            | Simulation
            | Quit
-           deriving (Show, Eq)
+           deriving (Eq)
 
 data TitleData = TitleData
 data BriefingData = BriefingData
@@ -42,4 +46,3 @@ data EditorData = EditorData
 data SimulationData = SimulationData
 
 data CameraData = CameraData
-data InputData = InputData

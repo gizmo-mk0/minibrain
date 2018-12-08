@@ -3,21 +3,22 @@
 module Main where
 
 import qualified SDL
-import qualified SDL.Primitive as SDLP
 
 import Control.Monad (unless, when)
 import Control.Monad.Reader (runReaderT, ask)
 import Control.Monad.State.Strict (evalStateT, gets, modify)
 
-import Types
+import Scene
+import GameData
 import Input
 import Globals
+import Render
 
 main :: IO ()
 main = do
     -- Init SDL
     SDL.initialize [SDL.InitVideo] -- TODO catch SDLException
-    window   <- SDL.createWindow "MiniBrain" SDL.defaultWindow
+    window   <- SDL.createWindow "Minibrain" SDL.defaultWindow
     renderer <- SDL.createRenderer window (-1) SDL.defaultRenderer
     -- Load resources
     let cfg = Config window renderer
@@ -30,7 +31,7 @@ main = do
     SDL.quit
 
 initData :: GameData
-initData = GameData (SceneData Title TitleData BriefingData defaultEditorData SimulationData)
+initData = GameData (SceneData Editor TitleData BriefingData defaultEditorData SimulationData)
                     CameraData
                     defaultInputData
 
@@ -45,7 +46,7 @@ mainLoop = do
     -- Scene logic
     advanceScene
     -- Render
-    renderScene
+    renderCurrentScene
     -- Decide next scene
     scene <- gets (currentScene . sceneData)
     let quit = scene == Quit
@@ -65,10 +66,3 @@ advanceScene = do
 changeScene :: Scene -> Minibrain ()
 changeScene s = modify (\gd@(GameData sd _ _) -> gd {sceneData = sd {currentScene = s}})
 
-renderScene :: Minibrain ()
-renderScene = do
-    (Config w r) <- ask
-    -- call Scene.renderCurrentScene
-    SDL.rendererDrawColor r SDL.$= editorBackgroundColor
-    SDL.clear r
-    SDL.present r

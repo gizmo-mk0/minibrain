@@ -15,7 +15,7 @@ import Scene.Editor
 data SceneData = SceneData
                { currentScene   :: Scene
                , titleData      :: TitleData
-               , briefingDara   :: BriefingData
+               , briefingData   :: BriefingData
                , editorData     :: EditorData
                , simulationData :: SimulationData }
 

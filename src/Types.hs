@@ -1,7 +1,15 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
-module Types where
+module Types
+    ( module Input
+    , module Scene
+    , Color
+    , Minibrain (..)
+    , Config (..)
+    , GameData (..)
+    , CameraData (..))
+    where
 
 import Control.Monad.IO.Class (MonadIO(..))
 import Control.Monad.Reader (ReaderT(..), MonadReader(..))
@@ -13,6 +21,7 @@ import qualified SDL
 import GHC.Word (Word8(..))
 
 import Input
+import Scene
 
 type Color = SDL.V4 Word8
 
@@ -25,24 +34,5 @@ data GameData = GameData
               { sceneData  :: SceneData
               , cameraData :: CameraData
               , inputData  :: InputData }
-
-data SceneData = SceneData
-               { currentScene   :: Scene
-               , titleData      :: TitleData
-               , briefingDara   :: BriefingData
-               , editorData     :: EditorData
-               , simulationData :: SimulationData }
-
-data Scene = Title
-           | Briefing
-           | Editor
-           | Simulation
-           | Quit
-           deriving (Eq)
-
-data TitleData = TitleData
-data BriefingData = BriefingData
-data EditorData = EditorData
-data SimulationData = SimulationData
 
 data CameraData = CameraData

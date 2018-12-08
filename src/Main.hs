@@ -30,7 +30,7 @@ main = do
     SDL.quit
 
 initData :: GameData
-initData = GameData (SceneData Title TitleData BriefingData EditorData SimulationData)
+initData = GameData (SceneData Title TitleData BriefingData defaultEditorData SimulationData)
                     CameraData
                     defaultInputData
 
@@ -68,6 +68,7 @@ changeScene s = modify (\gd@(GameData sd _ _) -> gd {sceneData = sd {currentScen
 renderScene :: Minibrain ()
 renderScene = do
     (Config w r) <- ask
+    -- call Scene.renderCurrentScene
     SDL.rendererDrawColor r SDL.$= editorBackgroundColor
     SDL.clear r
     SDL.present r

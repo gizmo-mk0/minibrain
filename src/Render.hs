@@ -1,6 +1,7 @@
 module Render where
 
 --
+import qualified Data.IntMap as Map
 import qualified SDL
 import qualified SDL.Primitive as SDLP
 
@@ -32,11 +33,11 @@ renderEditor :: Minibrain ()
 renderEditor = do
     (Config _ r) <- ask
     SDL.rendererDrawColor r SDL.$= editorBackgroundColor
+    SDL.clear r
 
     perceptrons <- gets (perceptrons . editorData . sceneData)
     mapM_ renderPerceptron perceptrons
 
-    SDL.clear r
     SDL.present r
     where
     renderPerceptron :: Perceptron -> Minibrain ()
@@ -44,8 +45,28 @@ renderEditor = do
         (Config _ r) <- ask
         let w = perceptronWidth
             h = fromIntegral $ getPerceptronHeight p
-        SDLP.fillRoundRectangle r pos (SDL.V2 w h) perceptronBodyRoundness
+            size = SDL.V2 w h
+            topLeft = pos - (fmap (`div` 2) size)
+            bottomRight = pos + (fmap (`div` 2) size)
+        SDLP.fillRoundRectangle r topLeft bottomRight perceptronBodyRoundness
                                 perceptronBodyColor
+        mapM_ (renderPin p) (zip [0..] $ Map.elems (Map.filter (\(Pin pType _) -> pType == InputPin) pins))
+        mapM_ (renderPin p) (zip [0..] $ Map.elems (Map.filter (\(Pin pType _) -> pType == OutputPin) pins))
+    renderPin :: Perceptron -> (Int, Pin) -> Minibrain ()
+    renderPin perc@(Perceptron pos@(SDL.V2 px py) _) (ix, pin@(Pin pinType _)) = do
+        (Config _ r) <- ask
+        let verticalPos = -(parentHeight `div` 2)
+                        + perceptronBodyRoundness
+                        + (fromIntegral ix * perceptronModuleHeight)
+                        + (perceptronModuleHeight `div` 2)
+            parentHeight = getPerceptronHeight perc
+            pinPos = case pinType of
+                        InputPin  -> pos - (SDL.V2 (perceptronWidth `div` 2) verticalPos)
+                        OutputPin -> pos + (SDL.V2 (perceptronWidth `div` 2) verticalPos)
+            size = SDL.V2 pinWidth pinHeight
+            topLeft = pinPos - (fmap (`div` 2) size)
+            bottomRight = pinPos + (fmap (`div` 2) size)
+        SDLP.fillRectangle r topLeft bottomRight pinColor
 
 renderSimulation :: Minibrain ()
 renderSimulation = undefined

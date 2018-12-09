@@ -22,7 +22,9 @@ data PinType = InputPin | OutputPin deriving (Eq)
 data Connector = Connector Int Int
 
 defaultEditorData :: EditorData
-defaultEditorData = EditorData (Map.singleton 1 (Perceptron (SDL.V2 100 100) Map.empty)) Map.empty
+defaultEditorData = EditorData (Map.singleton 1 (Perceptron (SDL.V2 300 400) (Map.fromList [(0, (Pin InputPin 1))
+                                                                                           ,(1, (Pin OutputPin 1))
+                                                                                           ,(2, (Pin InputPin 1))]))) Map.empty
 
 getPerceptronHeight :: Perceptron -> CInt
 getPerceptronHeight p =

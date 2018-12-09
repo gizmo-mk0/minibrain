@@ -1,6 +1,7 @@
 module Types where
 
 import qualified SDL
+import Control.Applicative
 import GHC.Word (Word8(..))
 import Foreign.C.Types (CInt)
 

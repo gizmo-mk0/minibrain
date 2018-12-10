@@ -41,30 +41,22 @@ renderEditor = do
     SDL.present r
     where
     renderPerceptron :: Perceptron -> Minibrain ()
-    renderPerceptron p@(Perceptron pos pins) = do
+    renderPerceptron p@(Perceptron _ pos pins) = do
         (Config _ r) <- ask
-        let w = perceptronWidth
-            h = fromIntegral $ getPerceptronHeight p
-            size = SDL.V2 w h
-            topLeft = pos - (fmap (`div` 2) size)
+        let w           = perceptronWidth
+            h           = fromIntegral $ getPerceptronHeight p
+            size        = SDL.V2 w h
+            topLeft     = pos - (fmap (`div` 2) size)
             bottomRight = pos + (fmap (`div` 2) size)
         SDLP.fillRoundRectangle r topLeft bottomRight perceptronBodyRoundness
                                 perceptronBodyColor
-        mapM_ (renderPin p) (zip [0..] $ Map.elems (Map.filter (\(Pin pType _) -> pType == InputPin) pins))
-        mapM_ (renderPin p) (zip [0..] $ Map.elems (Map.filter (\(Pin pType _) -> pType == OutputPin) pins))
-    renderPin :: Perceptron -> (Int, Pin) -> Minibrain ()
-    renderPin perc@(Perceptron pos@(SDL.V2 px py) _) (ix, pin@(Pin pinType _)) = do
+        mapM_ (renderPin p) pins
+    renderPin :: Perceptron -> Pin -> Minibrain ()
+    renderPin perc pin = do
         (Config _ r) <- ask
-        let verticalPos = -(parentHeight `div` 2)
-                        + perceptronBodyRoundness
-                        + (fromIntegral ix * perceptronModuleHeight)
-                        + (perceptronModuleHeight `div` 2)
-            parentHeight = getPerceptronHeight perc
-            pinPos = case pinType of
-                        InputPin  -> pos - (SDL.V2 (perceptronWidth `div` 2) verticalPos)
-                        OutputPin -> pos + (SDL.V2 (perceptronWidth `div` 2) verticalPos)
-            size = SDL.V2 pinWidth pinHeight
-            topLeft = pinPos - (fmap (`div` 2) size)
+        let pinPos      = getPinPosition perc pin
+            size        = SDL.V2 pinWidth pinHeight
+            topLeft     = pinPos - (fmap (`div` 2) size)
             bottomRight = pinPos + (fmap (`div` 2) size)
         SDLP.fillRectangle r topLeft bottomRight pinColor
 

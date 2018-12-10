@@ -1,3 +1,5 @@
+{-# LANGUAGE DuplicateRecordFields #-}
+
 module Scene.Editor where
 
 --
@@ -9,27 +11,44 @@ import Types
 import Globals
 
 data EditorData = EditorData
-                { perceptrons :: Map.IntMap Perceptron
-                , connectors  :: Map.IntMap Connector}
+                { perceptrons :: [Perceptron]
+                , connectors  :: [Connector]}
 
 data Perceptron = Perceptron
-                { position :: Vector2
-                , pins     :: Map.IntMap Pin }
+                { ix       :: Int
+                , position :: Vector2
+                , pins     :: [Pin] }
 data Pin = Pin
-         { getType  :: PinType
+         { ix       :: Int
+         , getType  :: PinType
          , parentId :: Int }
 data PinType = InputPin | OutputPin deriving (Eq)
 data Connector = Connector Int Int
 
 defaultEditorData :: EditorData
-defaultEditorData = EditorData (Map.singleton 1 (Perceptron (SDL.V2 300 400) (Map.fromList [(0, (Pin InputPin 1))
-                                                                                           ,(1, (Pin OutputPin 1))
-                                                                                           ,(2, (Pin InputPin 1))]))) Map.empty
+defaultEditorData =
+    EditorData [Perceptron 0
+                           (SDL.V2 300 400)
+                           [ Pin 0 InputPin  1
+                           , Pin 0 OutputPin 1
+                           , Pin 1 InputPin  1]]
+                []
 
 getPerceptronHeight :: Perceptron -> CInt
 getPerceptronHeight p =
     perceptronBodyRoundness * 2 + moduleCount * perceptronModuleHeight
     where
     moduleCount    = fromIntegral $ max inputPinCount outputPinCount
-    inputPinCount  = Map.size $ Map.filter (\(Pin t _) -> t == InputPin)  (pins p)
-    outputPinCount = Map.size $ Map.filter (\(Pin t _) -> t == OutputPin) (pins p)
+    inputPinCount  = length $ filter (\(Pin _ t _) -> t == InputPin)  (pins p)
+    outputPinCount = length $ filter (\(Pin _ t _) -> t == OutputPin) (pins p)
+
+getPinPosition :: Perceptron -> Pin -> Vector2
+getPinPosition perc@(Perceptron _ pos@(SDL.V2 px py) _) pin@(Pin ix pinType _) =
+    let verticalPos  = -(parentHeight `div` 2)
+                     + perceptronBodyRoundness
+                     + (fromIntegral ix * perceptronModuleHeight)
+                     + (perceptronModuleHeight `div` 2)
+        parentHeight = getPerceptronHeight perc
+    in  case pinType of
+        InputPin  -> pos - (SDL.V2 (perceptronWidth `div` 2) verticalPos)
+        OutputPin -> pos + (SDL.V2 (perceptronWidth `div` 2) verticalPos)

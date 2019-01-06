@@ -35,26 +35,31 @@ renderEditor = do
     SDL.rendererDrawColor r SDL.$= editorBackgroundColor
     SDL.clear r
 
-    perceptrons <- gets (perceptrons . editorData . sceneData)
+    perceptrons <- gets (nodes . editorData . sceneData)
     mapM_ renderPerceptron perceptrons
+
+    -- connections <- gets (edges . editorData . sceneData)
+    -- mapM_ renderConnection connections
 
     SDL.present r
     where
     renderPerceptron :: Perceptron -> Minibrain ()
-    renderPerceptron p@(Perceptron _ pos pins) = do
+    renderPerceptron p = do
         (Config _ r) <- ask
         let w           = perceptronWidth
             h           = fromIntegral $ getPerceptronHeight p
             size        = SDL.V2 w h
-            topLeft     = pos - (fmap (`div` 2) size)
-            bottomRight = pos + (fmap (`div` 2) size)
+            topLeft     = position p - (fmap (`div` 2) size)
+            bottomRight = position p + (fmap (`div` 2) size)
         SDLP.fillRoundRectangle r topLeft bottomRight perceptronBodyRoundness
                                 perceptronBodyColor
-        mapM_ (renderPin p) pins
-    renderPin :: Perceptron -> Pin -> Minibrain ()
-    renderPin perc pin = do
+        mapM_ (renderPin p)
+              (zip [0..inputPinCount p - 1] (repeat InputPin) ++
+               zip [0..outputPinCount p - 1] (repeat OutputPin))
+    renderPin :: Perceptron -> (Int, PinType) -> Minibrain ()
+    renderPin perc (n, t) = do
         (Config _ r) <- ask
-        let pinPos      = getPinPosition perc pin
+        let pinPos      = getPinPosition perc n t
             size        = SDL.V2 pinWidth pinHeight
             topLeft     = pinPos - (fmap (`div` 2) size)
             bottomRight = pinPos + (fmap (`div` 2) size)

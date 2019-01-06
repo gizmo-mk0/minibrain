@@ -19,7 +19,7 @@ executable hsminibrain
   main-is:             Main.hs
   build-depends:       base >=4.11 && <4.12,
                        sdl2, sdl2-gfx, sdl2-image, sdl2-mixer, sdl2-ttf,
-                       vector, mtl, safe-exceptions, containers
+                       vector, mtl, safe-exceptions, containers, fgl
   hs-source-dirs:      src
   other-modules:       Types, Globals, Input, Scene, Scene.Editor, Render,
                        GameData

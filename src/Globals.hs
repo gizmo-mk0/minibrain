@@ -21,9 +21,10 @@ pinColor              = mkColor 206 201 193 255
 
 -- Sizes
 perceptronWidth, perceptronModuleHeight, perceptronBodyRoundness, pinWidth,
-    pinHeight :: CInt
+    pinHeight, connectionWidth :: CInt
 perceptronWidth         = 100
 perceptronModuleHeight  =  40
 perceptronBodyRoundness =  10
 pinWidth                =  20
 pinHeight               = round (fromIntegral perceptronModuleHeight * 0.6)
+connectionWidth         = 10

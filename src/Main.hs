@@ -3,6 +3,8 @@
 module Main where
 
 import qualified SDL
+import qualified SDL.Video as SDL
+import qualified Graphics.Gloss.Rendering as G
 
 import Control.Monad (unless, when)
 import Control.Monad.Reader (runReaderT, ask)
@@ -14,14 +16,26 @@ import Input
 import Globals
 import Render
 
+
+width = 800 :: Float
+c_width = fromIntegral $ floor width
+height = 800 :: Float
+c_height = fromIntegral $ floor height
+
 main :: IO ()
 main = do
     -- Init SDL
     SDL.initialize [SDL.InitVideo] -- TODO catch SDLException
-    window   <- SDL.createWindow "Minibrain" SDL.defaultWindow
-    renderer <- SDL.createRenderer window (-1) SDL.defaultRenderer
+    window   <- SDL.createWindow "Minibrain" (SDL.defaultWindow
+                    { SDL.windowInitialSize = SDL.V2 (fromIntegral $ floor width)
+                                                    (fromIntegral $ floor height)
+                    , SDL.windowGraphicsContext = SDL.OpenGLContext SDL.defaultOpenGL })
+    -- renderer <- SDL.createRenderer window (-1) SDL.defaultRenderer
+    context <- SDL.glCreateContext window
+    glossState <- G.initState
+
     -- Load resources
-    let cfg = Config window renderer
+    let cfg = Config window (SDL.V2 c_width c_height) glossState -- texture
         gameData = initData
     -- Run main loop
     runMinibrain cfg gameData mainLoop
@@ -32,7 +46,7 @@ main = do
 
 initData :: GameData
 initData = GameData (SceneData Editor TitleData BriefingData defaultEditorData SimulationData)
-                    CameraData
+                    (CameraData (SDL.V2 0 0) 0 1)
                     defaultInputData
 
 runMinibrain :: Config -> GameData -> Minibrain a -> IO a

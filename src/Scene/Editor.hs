@@ -35,7 +35,11 @@ defaultEditorData :: EditorData
 defaultEditorData = testEditorData -- EditorData G.empty
 
 testEditorData :: EditorData
-testEditorData = EditorData $ G.insNode (0, Perceptron 3 2 (SDL.V2 100 100)) G.empty
+testEditorData =
+    EditorData
+        $ G.insEdge (0, 1, Connection 0 0 0)
+        $ G.insNode (1, Perceptron 3 2 (SDL.V2 300 100))
+        $ G.insNode (0, Perceptron 3 2 (SDL.V2 100 100)) G.empty
 
 getPerceptronHeight :: Perceptron -> CInt
 getPerceptronHeight n =
@@ -62,5 +66,5 @@ getPinPosition p n t =
                      + (perceptronModuleHeight `div` 2)
         parentHeight = getPerceptronHeight p
     in  case t of
-        InputPin  -> position p - (SDL.V2 (perceptronWidth `div` 2) verticalPos)
+        InputPin  -> position p - (SDL.V2 (perceptronWidth `div` 2) (-verticalPos))
         OutputPin -> position p + (SDL.V2 (perceptronWidth `div` 2) verticalPos)

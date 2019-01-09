@@ -17,8 +17,8 @@ type EditorGraph = G.Gr Perceptron Connection
 -- The Perceptron stores the number of available pins and its own position
 data Perceptron  = Perceptron
                  { inputPinCount  :: Int
-                 , outputPinCount  :: Int
-                 , position     :: Vector2 }
+                 , outputPinCount :: Int
+                 , position       :: Vector2f }
 
 -- The Connection stores which pin is connected to which pin
 data Connection  = Connection
@@ -41,7 +41,7 @@ testEditorData =
         $ G.insNode (1, Perceptron 3 2 (SDL.V2 300 100))
         $ G.insNode (0, Perceptron 3 2 (SDL.V2 100 100)) G.empty
 
-getPerceptronHeight :: Perceptron -> CInt
+getPerceptronHeight :: Perceptron -> Float
 getPerceptronHeight n =
     perceptronBodyRoundness * 2 + moduleCount * perceptronModuleHeight
     where
@@ -58,13 +58,16 @@ edges (EditorData g) = map getWithLabels (G.labEdges g)
         getWithLabels (n1, n2, c) =
             (fromJust $ G.lab g n1, fromJust $ G.lab g n2, c)
 
-getPinPosition :: Perceptron -> Int -> PinType -> Vector2
-getPinPosition p n t =
-    let verticalPos  = -(parentHeight `div` 2)
-                     + perceptronBodyRoundness
-                     + (fromIntegral n * perceptronModuleHeight)
-                     + (perceptronModuleHeight `div` 2)
+getPinRelativePosition :: Perceptron -> Int -> PinType -> Vector2f
+getPinRelativePosition p n t =
+    let verticalPos  = (parentHeight / 2)
+                     - perceptronBodyRoundness
+                     - (fromIntegral n * perceptronModuleHeight)
+                     - (perceptronModuleHeight / 2)
         parentHeight = getPerceptronHeight p
     in  case t of
-        InputPin  -> position p - (SDL.V2 (perceptronWidth `div` 2) (-verticalPos))
-        OutputPin -> position p + (SDL.V2 (perceptronWidth `div` 2) verticalPos)
+        InputPin  -> (SDL.V2 (-perceptronWidth / 2) verticalPos)
+        OutputPin -> (SDL.V2 ( perceptronWidth / 2) verticalPos)
+
+getPinAbsolutePosition :: Perceptron -> Int -> PinType -> Vector2f
+getPinAbsolutePosition p n t = position p + getPinRelativePosition p n t

@@ -21,7 +21,7 @@ newtype Minibrain a = Minibrain (ReaderT Config (StateT GameData IO) a)
 data Config = Config
             { getWindow     :: SDL.Window
             -- , getRenderer   :: SDL.Renderer
-            , getWindowSize :: Vector2
+            , getWindowSize :: Vector2i
             , getGlossState :: G.State }
             -- , getTexture  :: SDL.Texture }
 data GameData = GameData
@@ -30,6 +30,6 @@ data GameData = GameData
               , inputData  :: InputData }
 
 data CameraData = CameraData
-                { cPosition   :: Vector2
+                { cPosition   :: Vector2f
                 , cRotation   :: Float
                 , cZoom       :: Float }

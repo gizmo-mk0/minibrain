@@ -3,7 +3,6 @@ module Render where
 --
 import qualified Data.IntMap as Map
 import qualified SDL
-import qualified SDL.Primitive as SDLP
 import qualified Graphics.Gloss.Rendering as G
 
 import Control.Monad.State.Strict (gets)
@@ -14,70 +13,86 @@ import Globals
 import GameData
 import Scene
 
+circleSolid :: Float -> G.Picture
+circleSolid r = G.ThickCircle (r / 2) r
+
+fillRoundRectangle :: Vector2f -> Float -> G.Picture
+fillRoundRectangle (SDL.V2 w h) r =
+    G.Pictures $ G.Polygon points
+               : map (\(dx, dy) -> G.Translate dx dy (circleSolid r))
+                     circlePositions
+    where
+    points = [ (-(w / 2) + r, -(h / 2))
+             , ( (w / 2) - r, -(h / 2))
+             , ( (w / 2),     -(h / 2) + r)
+             , ( (w / 2),      (h / 2) - r)
+             , ( (w / 2) - r,  (h / 2))
+             , (-(w / 2) + r,  (h / 2))
+             , (-(w / 2),      (h / 2) - r)
+             , (-(w / 2),     -(h / 2) + r)]
+    circlePositions = [ (-(w / 2) + r, -(h / 2) + r)
+                      , ( (w / 2) - r, -(h / 2) + r)
+                      , (-(w / 2) + r,  (h / 2) - r)
+                      , ( (w / 2) - r,  (h / 2) - r) ]
+
 renderCurrentScene :: Minibrain ()
 renderCurrentScene = do
-    scene <- gets (currentScene . sceneData)
-    w <- asks getWindow
-    case scene of
-        Title -> renderTitle
-        Briefing -> renderBriefing
-        Editor -> renderEditor
-        Simulation -> renderSimulation
-        Quit -> return ()
-    SDL.glSwapWindow w
-    
+    (SDL.V2 w h)   <- asks getWindowSize
+    s              <- asks getGlossState
+    window         <- asks getWindow
+    zoom           <- gets (cZoom . cameraData)
+    rotation       <- gets (cRotation . cameraData)
+    (SDL.V2 dx dy) <- gets (cPosition . cameraData)
+    scene          <- gets (currentScene . sceneData)
+    sceneGeometry <-
+        case scene of
+            Title      -> renderTitle
+            Briefing   -> renderBriefing
+            Editor     -> renderEditor
+            Simulation -> renderSimulation
+            Quit       -> return G.Blank
+    liftIO $ G.displayPicture (w, h) (G.makeColor 0 0 0 0) s zoom
+           $ G.Translate dx dy
+           $ G.Rotate rotation
+           $ G.Scale zoom zoom
+           $ sceneGeometry
+    SDL.glSwapWindow window
 
-renderTitle :: Minibrain ()
+renderTitle :: Minibrain G.Picture
 renderTitle = undefined
 
-renderBriefing :: Minibrain ()
+renderBriefing :: Minibrain G.Picture
 renderBriefing = undefined
 
-renderEditor :: Minibrain ()
+renderEditor :: Minibrain G.Picture
 renderEditor = do
-    -- r <- asks getRenderer
-    s <- asks getGlossState
-    (SDL.V2 w h) <- asks getWindowSize
-    -- SDL.rendererDrawColor r SDL.$= editorBackgroundColor
-    -- SDL.clear r
-
-    -- renderBackground
-    -- test
-    -- SDLP.thickLine r (SDL.V2 0 0) (SDL.V2 400 400) connectionWidth pinColor
-    liftIO $ G.displayPicture (fromIntegral w, fromIntegral h) (G.makeColor 0 1 0 1) s 1 (G.Color (G.makeColor 1 0 0 1) (G.ThickCircle 5 2))
-    -- liftIO $ G.renderPicture s 1 (G.Color (G.makeColor 1 1 1 1) (G.ThickCircle 50 20))
-    -- endtest
     
-
-    -- perceptrons <- gets (nodes . editorData . sceneData)
-    -- mapM_ renderPerceptron perceptrons
+    perceptrons <- gets (nodes . editorData . sceneData)
+    return $ G.Color background
+        --    $ backgroundLines
+           $ G.Pictures $ map renderPerceptron perceptrons
 
     -- connections <- gets (edges . editorData . sceneData)
     -- mapM_ renderConnection connections
 
-    -- SDL.present r
-    -- where
-    -- renderPerceptron :: Perceptron -> Minibrain ()
-    -- renderPerceptron p = do
-    --     r <- asks getRenderer
-    --     let w           = perceptronWidth
-    --         h           = fromIntegral $ getPerceptronHeight p
-    --         size        = SDL.V2 w h
-    --         topLeft     = position p - (fmap (`div` 2) size)
-    --         bottomRight = position p + (fmap (`div` 2) size)
-    --     SDLP.fillRoundRectangle r topLeft bottomRight perceptronBodyRoundness
-    --                             perceptronBodyColor
-    --     mapM_ (renderPin p)
-    --           (zip [0..inputPinCount p - 1] (repeat InputPin) ++
-    --            zip [0..outputPinCount p - 1] (repeat OutputPin))
-    -- renderPin :: Perceptron -> (Int, PinType) -> Minibrain ()
-    -- renderPin perc (n, t) = do
-    --     r <- asks getRenderer
-    --     let pinPos      = getPinPosition perc n t
-    --         size        = SDL.V2 pinWidth pinHeight
-    --         topLeft     = pinPos - (fmap (`div` 2) size)
-    --         bottomRight = pinPos + (fmap (`div` 2) size)
-    --     SDLP.fillRectangle r topLeft bottomRight pinColor
+    where
+    renderPerceptron :: Perceptron -> G.Picture
+    renderPerceptron p =
+        let w            = perceptronWidth
+            h            = getPerceptronHeight p
+            size         = SDL.V2 w h
+            (SDL.V2 x y) = position p
+            body = G.Color perceptronBodyColor $
+                            fillRoundRectangle size perceptronBodyRoundness
+            pins = map (renderPin p)
+                       (zip [0..inputPinCount p - 1] (repeat InputPin) ++
+                       zip [0..outputPinCount p - 1] (repeat OutputPin))
+        in  G.Translate x y $ G.Pictures (reverse $ body : pins)
+    renderPin :: Perceptron -> (Int, PinType) -> G.Picture
+    renderPin perc (n, t) =
+        let (SDL.V2 px py) = getPinRelativePosition perc n t
+            size           = SDL.V2 pinWidth pinHeight
+        in G.Translate px py $ G.Color pinColor $ fillRoundRectangle size 0
     -- renderConnection :: (Perceptron, Perceptron, Connection) -> Minibrain ()
     -- renderConnection (p1, p2, c) = do
     --     r <- asks getRenderer
@@ -91,5 +106,5 @@ renderEditor = do
     -- renderBackground :: Minibrain ()
     -- renderBackground = undefined
 
-renderSimulation :: Minibrain ()
+renderSimulation :: Minibrain G.Picture
 renderSimulation = undefined

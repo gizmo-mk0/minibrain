@@ -19,7 +19,7 @@ import Render
 
 width = 800 :: Float
 c_width = fromIntegral $ floor width
-height = 800 :: Float
+height = 600 :: Float
 c_height = fromIntegral $ floor height
 
 main :: IO ()

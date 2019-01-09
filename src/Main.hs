@@ -3,7 +3,7 @@
 module Main where
 
 import qualified SDL
-import qualified SDL.Video as SDL
+-- import qualified SDL.Video as SDL
 import qualified Graphics.Gloss.Rendering as G
 
 import Control.Monad (unless, when)
@@ -59,6 +59,8 @@ mainLoop = do
     updateInput
     -- Scene logic
     advanceScene
+    -- Update the camera
+    updateCamera
     -- Render
     renderCurrentScene
     -- Decide next scene
@@ -69,14 +71,21 @@ mainLoop = do
 updateInput :: Minibrain ()
 updateInput = do
     events <- SDL.pollEvents
-    mapM_ (\e -> modify (\gd@(GameData _ _ inpDat) ->
-                    gd{inputData = modifyInput inpDat e})) events
+    modify (\gd@(GameData _ _ inpDat) ->
+        gd{inputData = foldr (flip modifyInput) inpDat events})
 
 advanceScene :: Minibrain ()
 advanceScene = do
     inp <- gets inputData
-    when (isButtonDown inp ButtonEsc) $ changeScene Quit
+    when (isButtonDown inp SDL.KeycodeEscape) $ changeScene Quit
 
 changeScene :: Scene -> Minibrain ()
 changeScene s = modify (\gd@(GameData sd _ _) -> gd {sceneData = sd {currentScene = s}})
 
+updateCamera :: Minibrain ()
+updateCamera = do
+    inp <- gets inputData
+    when (isButtonDown inp SDL.KeycodeLeft)  $ modify (\gd -> gd {cameraData = rotateCamera (cameraData gd) 0.5})
+    when (isButtonDown inp SDL.KeycodeRight) $ modify (\gd -> gd {cameraData = rotateCamera (cameraData gd) (-0.5)})
+    where
+    rotateCamera c r = c {cRotation = cRotation c + r}

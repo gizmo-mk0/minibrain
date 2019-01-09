@@ -37,7 +37,7 @@ defaultEditorData = testEditorData -- EditorData G.empty
 testEditorData :: EditorData
 testEditorData =
     EditorData
-        $ G.insEdge (0, 1, Connection 0 0 0)
+        $ G.insEdge (0, 1, Connection 0 1 0)
         $ G.insNode (1, Perceptron 3 2 (SDL.V2 300 100))
         $ G.insNode (0, Perceptron 3 2 (SDL.V2 100 100)) G.empty
 

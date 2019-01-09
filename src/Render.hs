@@ -16,6 +16,15 @@ import Scene
 circleSolid :: Float -> G.Picture
 circleSolid r = G.ThickCircle (r / 2) r
 
+thickLine :: Vector2f -> Vector2f -> Float -> G.Picture
+thickLine start@(SDL.V2 x1 y1) end@(SDL.V2 x2 y2) w = G.Polygon points
+    where
+    (SDL.V2 x y) = end - start
+    normal = SDL.V2 (-y * (w / 2) / l) (x * (w / 2) / l)
+    l = sqrt (x * x + y * y)
+    points = map (\(SDL.V2 c1 c2) -> (c1, c2))
+                 [start + normal, end + normal, end - normal, start - normal]
+
 fillRoundRectangle :: Vector2f -> Float -> G.Picture
 fillRoundRectangle (SDL.V2 w h) r =
     G.Pictures $ G.Polygon points
@@ -68,12 +77,11 @@ renderEditor :: Minibrain G.Picture
 renderEditor = do
     
     perceptrons <- gets (nodes . editorData . sceneData)
+    connections <- gets (edges . editorData . sceneData)
     return $ G.Color background
-        --    $ backgroundLines
+        --    $ renderBackground
            $ G.Pictures $ map renderPerceptron perceptrons
-
-    -- connections <- gets (edges . editorData . sceneData)
-    -- mapM_ renderConnection connections
+                       ++ map renderConnection connections
 
     where
     renderPerceptron :: Perceptron -> G.Picture
@@ -93,16 +101,12 @@ renderEditor = do
         let (SDL.V2 px py) = getPinRelativePosition perc n t
             size           = SDL.V2 pinWidth pinHeight
         in G.Translate px py $ G.Color pinColor $ fillRoundRectangle size 0
-    -- renderConnection :: (Perceptron, Perceptron, Connection) -> Minibrain ()
-    -- renderConnection (p1, p2, c) = do
-    --     r <- asks getRenderer
-    --     let pos1 = getPinPosition p1 (srcPinNumber c) OutputPin
-    --         pos2 = getPinPosition p2 (dstPinNumber c) InputPin
-    --     -- thickLine :: MonadIO m => Renderer -> Pos -> Pos -> Width -> Color -> m () 
-    --     SDLP.thickLine r pos1 pos2 connectionWidth pinColor
-    -- -- TODO
-    -- -- https://gamedev.stackexchange.com/questions/106438/zooming-in-sdl-2-0
-    -- -- Maybe store the srcRect and dstRect in EditorData?
+    renderConnection :: (Perceptron, Perceptron, Connection) -> G.Picture
+    renderConnection (p1, p2, c) =
+        let pos1 = getPinAbsolutePosition p1 (srcPinNumber c) OutputPin
+            pos2 = getPinAbsolutePosition p2 (dstPinNumber c) InputPin
+        in G.Color pinColor $ thickLine pos1 pos2 connectionWidth
+    -- TODO
     -- renderBackground :: Minibrain ()
     -- renderBackground = undefined
 

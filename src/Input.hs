@@ -1,6 +1,5 @@
 module Input
     ( InputData(..)
-    , ButtonType(..)
     , defaultInputData
     , isButtonDown
     , isButtonUp
@@ -12,12 +11,11 @@ module Input
 import qualified SDL
 import qualified Data.Map as Map
 
-type ButtonMap = Map.Map ButtonType ButtonState
+type ButtonMap = Map.Map SDL.Keycode ButtonState
 
 data InputData = InputData
     { buttons :: ButtonMap
     , mouse   :: MouseData }
-data ButtonType = ButtonEsc deriving (Eq, Ord) -- | the rest...
 data ButtonState = Down | Up | JustPressed | JustReleased deriving (Eq)
 data MouseData = MouseData
 
@@ -31,20 +29,20 @@ up :: ButtonState -> ButtonState
 up bs = if isUp bs then Up else JustReleased
 
 combine :: ButtonState -> ButtonState -> ButtonState
-combine bs Down = down bs
-combine bs Up   = up   bs
-combine _  _    = Up
+combine Down bs = down bs
+combine Up   bs = up   bs
+combine _    _  = error "`combine`: The impossible happened"
 
-isButtonDown :: InputData -> ButtonType -> Bool
+isButtonDown :: InputData -> SDL.Keycode -> Bool
 isButtonDown inp bt = isDown $ Map.findWithDefault Up bt (buttons inp)
 
-isButtonUp :: InputData -> ButtonType -> Bool
+isButtonUp :: InputData -> SDL.Keycode -> Bool
 isButtonUp inp bt = isUp $ Map.findWithDefault Up bt (buttons inp)
 
-isButtonJustPressed :: InputData -> ButtonType -> Bool
+isButtonJustPressed :: InputData -> SDL.Keycode -> Bool
 isButtonJustPressed inp bt = isJustPressed $ Map.findWithDefault Up bt (buttons inp)
 
-isButtonJustReleased :: InputData -> ButtonType -> Bool
+isButtonJustReleased :: InputData -> SDL.Keycode -> Bool
 isButtonJustReleased inp bt = isJustReleased $ Map.findWithDefault Up bt (buttons inp)
 
 isDown :: ButtonState -> Bool
@@ -72,20 +70,14 @@ modifyInput inpDat e =
                 SDL.KeyboardEvent kbe ->
                     let motion = SDL.keyboardEventKeyMotion kbe -- pressed or released
                         keycode = SDL.keysymKeycode (SDL.keyboardEventKeysym kbe)
-                    in  modifyButton (sdlInputTranslate keycode)
-                                    (fromMotion motion)
+                    in  modifyButton keycode (fromMotion motion)
                 _ -> id
         newMouse = id
     in InputData (newButtons (buttons inpDat)) (newMouse (mouse inpDat))
 
 fromMotion :: SDL.InputMotion -> ButtonState
 fromMotion SDL.Pressed  = Down
-sromMotion SDL.Released = Up
+fromMotion SDL.Released = Up
 
-modifyButton :: Maybe ButtonType -> ButtonState -> ButtonMap -> ButtonMap
-modifyButton Nothing   _      = id
-modifyButton (Just bt) action = Map.insertWith combine bt action
-
-sdlInputTranslate :: SDL.Keycode -> Maybe ButtonType
-sdlInputTranslate SDL.KeycodeEscape = Just ButtonEsc
-sdlInputTranslate _                 = Nothing
+modifyButton :: SDL.Keycode -> ButtonState -> ButtonMap -> ButtonMap
+modifyButton bt action = Map.insertWith combine bt action

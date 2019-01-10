@@ -5,7 +5,8 @@ module Input
     , isButtonUp
     , isButtonJustPressed
     , isButtonJustReleased
-    , modifyInput )
+    , modifyInput
+    , advanceInputData )
     where
 
 import qualified SDL
@@ -16,8 +17,9 @@ type ButtonMap = Map.Map SDL.Keycode ButtonState
 data InputData = InputData
     { buttons :: ButtonMap
     , mouse   :: MouseData }
-data ButtonState = Down | Up | JustPressed | JustReleased deriving (Eq)
-data MouseData = MouseData
+    deriving (Show)
+data ButtonState = Down | Up | JustPressed | JustReleased deriving (Show, Eq)
+data MouseData = MouseData deriving (Show)
 
 defaultInputData :: InputData
 defaultInputData = InputData Map.empty MouseData
@@ -63,6 +65,11 @@ isJustReleased :: ButtonState -> Bool
 isJustReleased JustReleased = True
 isJustReleased _            = False
 
+advanceButtonState :: ButtonState -> ButtonState
+advanceButtonState JustPressed  = Down
+advanceButtonState JustReleased = Up
+advanceButtonState bs           = bs
+
 modifyInput :: InputData -> SDL.Event -> InputData
 modifyInput inpDat e =
     let newButtons =
@@ -81,3 +88,7 @@ fromMotion SDL.Released = Up
 
 modifyButton :: SDL.Keycode -> ButtonState -> ButtonMap -> ButtonMap
 modifyButton bt action = Map.insertWith combine bt action
+
+advanceInputData :: InputData -> InputData
+advanceInputData inpDat = InputData (Map.map advanceButtonState (buttons inpDat))
+                                    (mouse inpDat)

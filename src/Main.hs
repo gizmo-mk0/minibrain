@@ -7,8 +7,12 @@ import qualified SDL
 import qualified Graphics.Gloss.Rendering as G
 
 import Control.Monad (unless, when)
-import Control.Monad.Reader (runReaderT, ask)
+import Control.Monad.Reader (runReaderT, ask, liftIO)
 import Control.Monad.State.Strict (evalStateT, gets, modify)
+
+-- debug imports:
+import System.IO (appendFile)
+import Data.List (intercalate)
 
 import Scene
 import GameData
@@ -67,12 +71,22 @@ mainLoop = do
     scene <- gets (currentScene . sceneData)
     let quit = scene == Quit
     unless quit mainLoop
+    where
+
+logging s = appendFile "log.txt" s
 
 updateInput :: Minibrain ()
 updateInput = do
     events <- SDL.pollEvents
     modify (\gd@(GameData _ _ inpDat) ->
-        gd{inputData = foldr (flip modifyInput) inpDat events})
+        gd{inputData = foldl modifyInput (advanceInputData inpDat) events})
+    
+    -- debug
+    -- when (not (null events)) $ liftIO $ do
+    --     logging $ (show (map extractKeyInfo events)) ++ "\n"
+    -- where
+    -- extractKeyInfo (SDL.Event _ (SDL.KeyboardEvent (SDL.KeyboardEventData _ m _ (SDL.Keysym s _ _)))) = "(" ++ show m ++ ", " ++ show s ++ ")"
+    -- extractKeyInfo _ = ""
 
 advanceScene :: Minibrain ()
 advanceScene = do
@@ -85,7 +99,15 @@ changeScene s = modify (\gd@(GameData sd _ _) -> gd {sceneData = sd {currentScen
 updateCamera :: Minibrain ()
 updateCamera = do
     inp <- gets inputData
-    when (isButtonDown inp SDL.KeycodeLeft)  $ modify (\gd -> gd {cameraData = rotateCamera (cameraData gd) 0.5})
-    when (isButtonDown inp SDL.KeycodeRight) $ modify (\gd -> gd {cameraData = rotateCamera (cameraData gd) (-0.5)})
+    when (isButtonDown inp SDL.KeycodeLeft)  $ modify (\gd -> gd {cameraData = rotateCamera (cameraData gd) 1})
+    when (isButtonDown inp SDL.KeycodeRight) $ modify (\gd -> gd {cameraData = rotateCamera (cameraData gd) (-1)})
+    when (isButtonDown inp SDL.KeycodeUp)    $ modify (\gd -> gd {cameraData = zoomCamera   (cameraData gd) 1.1})
+    when (isButtonDown inp SDL.KeycodeDown)  $ modify (\gd -> gd {cameraData = zoomCamera   (cameraData gd) 0.9})
+    when (isButtonDown inp SDL.KeycodeW)     $ modify (\gd -> gd {cameraData = moveCamera   (cameraData gd) (SDL.V2    0 (-10))})
+    when (isButtonDown inp SDL.KeycodeS)     $ modify (\gd -> gd {cameraData = moveCamera   (cameraData gd) (SDL.V2    0   10)})
+    when (isButtonDown inp SDL.KeycodeA)     $ modify (\gd -> gd {cameraData = moveCamera   (cameraData gd) (SDL.V2   10    0)})
+    when (isButtonDown inp SDL.KeycodeD)     $ modify (\gd -> gd {cameraData = moveCamera   (cameraData gd) (SDL.V2 (-10)   0)})
     where
     rotateCamera c r = c {cRotation = cRotation c + r}
+    zoomCamera   c z = c {cZoom     = cZoom c     * z}
+    moveCamera   c v = c {cPosition = cPosition c + v}

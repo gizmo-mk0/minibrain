@@ -42,12 +42,12 @@ toWorldCoords (SDL.V2 x y) = do
     (SDL.V2 w h)                    <- asks getWindowSize
     (CameraData (SDL.V2 cx cy) r z) <- gets cameraData
     let (L.V2 lx ly) = (^. L._xy)
-                     -- applying camera transformation:
-                     . (+ (L.V3 cx cy 0))
-                     . (* (L.V3 z z z))
+                     -- applying camera transformation in reverse:
                      . L.rotate (L.axisAngle (L.V3 0 0 1) (pi * r / 180))
+                     . (/ (L.V3 z z z))
+                     . (+ (L.V3 (-cx) (-cy) 0))
                      -- convert from SDL screen coordinates:
-                     . (+ (L.V3 (fromIntegral w / 2)) (fromIntegral h / 2) 0)
+                     . (+ (L.V3 (-(fromIntegral w / 2)) (fromIntegral h / 2) 0))
                      . (* (L.V3 1 (-1) 1))
                      $ (L.V3 x y 0)
     return $ SDL.V2 lx ly
@@ -69,16 +69,14 @@ advanceEditor :: Minibrain ()
 advanceEditor = do
     -- get input
     inp <- gets inputData
+    mPos <- toWorldCoords (fmap fromIntegral . mousePosition . mouse $ inp)
     -- liftIO $ appendFile "log.txt" $ show inp ++ "\n"
     -- check if mouse is clicked
     if isMouseButtonJustPressed inp SDL.ButtonLeft
         then do
             let newEditorData gd =
                     addPerceptron (editorData (sceneData gd))
-                                  (Perceptron 1 1
-                                  ( fmap fromIntegral
-                                  . mousePosition
-                                  . mouse $ inp))
+                                  (Perceptron 1 1 mPos)
             modify (\gd -> gd {sceneData = (sceneData gd)
                                               {editorData = newEditorData gd}})
         else return ()

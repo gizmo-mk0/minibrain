@@ -47,6 +47,10 @@ getPerceptronHeight n =
     where
     moduleCount = fromIntegral $ max (inputPinCount n) (outputPinCount n)
 
+addPerceptron :: EditorData -> Perceptron -> EditorData
+addPerceptron e p =
+    e {graph = G.insNode ((+1) . snd $ G.nodeRange (graph e), p) (graph e)}
+
 nodes :: EditorData -> [Perceptron]
 nodes (EditorData g) = map snd (G.labNodes g)
 

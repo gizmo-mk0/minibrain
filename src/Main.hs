@@ -59,8 +59,8 @@ runMinibrain config gameData (Minibrain m) =
 
 mainLoop :: Minibrain ()
 mainLoop = do
-    -- Collect input
-    updateInput
+    -- Collect and handle events (update input, etc.)
+    handleEvents
     -- Scene logic
     advanceScene
     -- Update the camera
@@ -71,30 +71,15 @@ mainLoop = do
     scene <- gets (currentScene . sceneData)
     let quit = scene == Quit
     unless quit mainLoop
-    where
 
-logging s = appendFile "log.txt" s
-
-updateInput :: Minibrain ()
-updateInput = do
+handleEvents :: Minibrain ()
+handleEvents = do
     events <- SDL.pollEvents
     modify (\gd@(GameData _ _ inpDat) ->
         gd{inputData = foldl modifyInput (advanceInputData inpDat) events})
     
-    -- debug
-    -- when (not (null events)) $ liftIO $ do
-    --     logging $ (show (map extractKeyInfo events)) ++ "\n"
-    -- where
-    -- extractKeyInfo (SDL.Event _ (SDL.KeyboardEvent (SDL.KeyboardEventData _ m _ (SDL.Keysym s _ _)))) = "(" ++ show m ++ ", " ++ show s ++ ")"
-    -- extractKeyInfo _ = ""
-
-advanceScene :: Minibrain ()
-advanceScene = do
-    inp <- gets inputData
-    when (isButtonDown inp SDL.KeycodeEscape) $ changeScene Quit
-
-changeScene :: Scene -> Minibrain ()
-changeScene s = modify (\gd@(GameData sd _ _) -> gd {sceneData = sd {currentScene = s}})
+    -- inpDat <- gets inputData
+    -- liftIO $ appendFile "log.txt" $ "[EVENTS] \n" ++ show events ++ "\n[INPUT DATA]\n" ++ show inpDat ++ "\n[-------]"
 
 updateCamera :: Minibrain ()
 updateCamera = do

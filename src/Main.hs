@@ -71,6 +71,9 @@ mainLoop = do
     scene <- gets (currentScene . sceneData)
     let quit = scene == Quit
     unless quit mainLoop
+    where
+
+logging s = appendFile "log.txt" s
 
 handleEvents :: Minibrain ()
 handleEvents = do

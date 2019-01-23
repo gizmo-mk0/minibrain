@@ -78,10 +78,17 @@ renderEditor = do
     
     perceptrons <- gets (nodes . editorData . sceneData)
     connections <- gets (edges . editorData . sceneData)
+    selection <- gets (selectionRect . editorData . sceneData)
+    let selectionPicture =
+            case selection of
+                Nothing -> G.Blank
+                Just selRect -> renderSelection selRect
     return $ G.Color background
         --    $ renderBackground
            $ G.Pictures $ map renderPerceptron perceptrons
                        ++ map renderConnection connections
+                       ++ [selectionPicture]
+    
 
     where
     renderPerceptron :: Perceptron -> G.Picture
@@ -109,6 +116,20 @@ renderEditor = do
     -- TODO
     -- renderBackground :: Minibrain ()
     -- renderBackground = undefined
+    renderSelection :: Rect2f -> G.Picture
+    renderSelection (Rect2f (SDL.V2 left top) (SDL.V2 w h)) =
+        let points =
+                [ (left,       top)
+                , ((left + w), top)
+                , ((left + w), (top + h))
+                , (left,       (top + h)) ]
+            coords = zip points (drop 1 (cycle points))
+        in  G.Pictures
+                [ G.Color selectionLineColor $ G.Pictures $
+                        map (\((p1x, p1y), (p2x, p2y)) ->
+                                thickLine (SDL.V2 p1x p1y)
+                                          (SDL.V2 p2x p2y) 1) coords
+                , G.Color selectionFillColor $ G.Polygon points ]
 
 renderSimulation :: Minibrain G.Picture
 renderSimulation = undefined

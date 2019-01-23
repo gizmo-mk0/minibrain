@@ -12,12 +12,13 @@ mkColor :: Int -> Int -> Int -> Int -> G.Color
 mkColor r g b a = G.makeColorI r g b a
 
 editorBackgroundColor, backgroundLines, background, perceptronBodyColor,
-    selectionColor, pinColor :: G.Color
+    selectionLineColor, selectionFillColor, pinColor :: G.Color
 editorBackgroundColor = mkColor  47  68  81 255
 backgroundLines       = mkColor  72  90 102 255
 background            = mkColor  47  68  81 255
 perceptronBodyColor   = mkColor  79 127 141 255
-selectionColor        = mkColor 113 180 198 255
+selectionLineColor    = mkColor 113 180 198 255
+selectionFillColor    = mkColor 113 180 198 63
 pinColor              = mkColor 206 201 193 255
 
 -- Sizes

@@ -53,7 +53,8 @@ toWorldCoords (SDL.V2 x y) = do
     return $ SDL.V2 lx ly
 
 changeScene :: Scene -> Minibrain ()
-changeScene s = modify (\gd@GameData{..} -> gd {sceneData = sceneData {currentScene = s}})
+changeScene s = modify (\gd@GameData{..} ->
+                                gd {sceneData = sceneData {currentScene = s}})
 
 advanceScene :: Minibrain ()
 advanceScene = do
@@ -69,17 +70,27 @@ advanceEditor :: Minibrain ()
 advanceEditor = do
     -- get input
     inp <- gets inputData
+    -- Convert mouse coordinate into world coordinates
     mPos <- toWorldCoords (fmap fromIntegral . mousePosition . mouse $ inp)
-    -- liftIO $ appendFile "log.txt" $ show inp ++ "\n"
-    -- check if mouse is clicked
+    -- If mouse left is down, and there is no selected node, we are in selection
+    -- mode
+     -- check if mouse is clicked
     if isMouseButtonJustPressed inp SDL.ButtonLeft
         then do
             let newEditorData gd =
-                    addPerceptron (editorData (sceneData gd))
-                                  (Perceptron 1 1 mPos)
+                    (editorData (sceneData gd)) {mousePressedAt = mPos}
             modify (\gd@GameData{..} -> gd {sceneData = sceneData
                                               {editorData = newEditorData gd}})
         else return ()
     if isButtonDown inp SDL.KeycodeEscape
         then changeScene Quit
         else return ()
+    ed <- gets (editorData . sceneData)
+    let selrect =
+            if (isMouseButtonDown inp SDL.ButtonLeft) &&
+                (null (selectedNodes ed))
+                then Just $ Rect2f (mousePressedAt ed) (mPos - (mousePressedAt ed))
+                else Nothing
+    modify (\gd@GameData{..} -> gd {sceneData = sceneData
+                {editorData = (editorData sceneData) {selectionRect = selrect}}})
+       

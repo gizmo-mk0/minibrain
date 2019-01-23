@@ -1,4 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module GameData where
 --
@@ -22,10 +23,9 @@ newtype Minibrain a = Minibrain (ReaderT Config (StateT GameData IO) a)
 
 data Config = Config
             { getWindow     :: SDL.Window
-            -- , getRenderer   :: SDL.Renderer
             , getWindowSize :: Vector2i
             , getGlossState :: G.State }
-            -- , getTexture  :: SDL.Texture }
+
 data GameData = GameData
               { sceneData  :: SceneData
               , cameraData :: CameraData
@@ -53,7 +53,7 @@ toWorldCoords (SDL.V2 x y) = do
     return $ SDL.V2 lx ly
 
 changeScene :: Scene -> Minibrain ()
-changeScene s = modify (\gd@(GameData sd _ _) -> gd {sceneData = sd {currentScene = s}})
+changeScene s = modify (\gd@GameData{..} -> gd {sceneData = sceneData {currentScene = s}})
 
 advanceScene :: Minibrain ()
 advanceScene = do
@@ -77,7 +77,7 @@ advanceEditor = do
             let newEditorData gd =
                     addPerceptron (editorData (sceneData gd))
                                   (Perceptron 1 1 mPos)
-            modify (\gd -> gd {sceneData = (sceneData gd)
+            modify (\gd@GameData{..} -> gd {sceneData = sceneData
                                               {editorData = newEditorData gd}})
         else return ()
     if isButtonDown inp SDL.KeycodeEscape

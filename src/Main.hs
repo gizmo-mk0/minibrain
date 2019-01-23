@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module Main where
 
@@ -9,10 +10,6 @@ import qualified Graphics.Gloss.Rendering as G
 import Control.Monad (unless, when)
 import Control.Monad.Reader (runReaderT, ask, liftIO)
 import Control.Monad.State.Strict (evalStateT, gets, modify)
-
--- debug imports:
-import System.IO (appendFile)
-import Data.List (intercalate)
 
 import Scene
 import GameData
@@ -30,16 +27,16 @@ main :: IO ()
 main = do
     -- Init SDL
     SDL.initialize [SDL.InitVideo] -- TODO catch SDLException
-    window   <- SDL.createWindow "Minibrain" (SDL.defaultWindow
-                    { SDL.windowInitialSize = SDL.V2 (fromIntegral $ floor width)
-                                                    (fromIntegral $ floor height)
-                    , SDL.windowGraphicsContext = SDL.OpenGLContext SDL.defaultOpenGL })
-    -- renderer <- SDL.createRenderer window (-1) SDL.defaultRenderer
+    window <- SDL.createWindow "Minibrain" (SDL.defaultWindow
+                { SDL.windowInitialSize =
+                    fmap fromIntegral $ SDL.V2 (floor width) (floor height)
+                , SDL.windowGraphicsContext =
+                    SDL.OpenGLContext SDL.defaultOpenGL })
     context <- SDL.glCreateContext window
     glossState <- G.initState
 
     -- Load resources
-    let cfg = Config window (SDL.V2 c_width c_height) glossState -- texture
+    let cfg = Config window (SDL.V2 c_width c_height) glossState
         gameData = initData
     -- Run main loop
     runMinibrain cfg gameData mainLoop
@@ -49,7 +46,8 @@ main = do
     SDL.quit
 
 initData :: GameData
-initData = GameData (SceneData Editor TitleData BriefingData defaultEditorData SimulationData)
+initData = GameData (SceneData Editor TitleData BriefingData defaultEditorData
+                               SimulationData)
                     (CameraData (SDL.V2 0 0) 0 1)
                     defaultInputData
 
@@ -73,13 +71,11 @@ mainLoop = do
     unless quit mainLoop
     where
 
-logging s = appendFile "log.txt" s
-
 handleEvents :: Minibrain ()
 handleEvents = do
     events <- SDL.pollEvents
-    modify (\gd@(GameData _ _ inpDat) ->
-        gd{inputData = foldl modifyInput (advanceInputData inpDat) events})
+    modify (\gd@GameData{..} ->
+        gd {inputData = foldl modifyInput (advanceInputData inputData) events})
     
     -- inpDat <- gets inputData
     -- liftIO $ appendFile "log.txt" $ "[EVENTS] \n" ++ show events ++ "\n[INPUT DATA]\n" ++ show inpDat ++ "\n[-------]"
@@ -87,15 +83,17 @@ handleEvents = do
 updateCamera :: Minibrain ()
 updateCamera = do
     inp <- gets inputData
-    when (isButtonDown inp SDL.KeycodeLeft)  $ modify (\gd -> gd {cameraData = rotateCamera (cameraData gd) 1})
-    when (isButtonDown inp SDL.KeycodeRight) $ modify (\gd -> gd {cameraData = rotateCamera (cameraData gd) (-1)})
-    when (isButtonDown inp SDL.KeycodeUp)    $ modify (\gd -> gd {cameraData = zoomCamera   (cameraData gd) 1.1})
-    when (isButtonDown inp SDL.KeycodeDown)  $ modify (\gd -> gd {cameraData = zoomCamera   (cameraData gd) 0.9})
-    when (isButtonDown inp SDL.KeycodeW)     $ modify (\gd -> gd {cameraData = moveCamera   (cameraData gd) (SDL.V2    0 (-10))})
-    when (isButtonDown inp SDL.KeycodeS)     $ modify (\gd -> gd {cameraData = moveCamera   (cameraData gd) (SDL.V2    0   10)})
-    when (isButtonDown inp SDL.KeycodeA)     $ modify (\gd -> gd {cameraData = moveCamera   (cameraData gd) (SDL.V2   10    0)})
-    when (isButtonDown inp SDL.KeycodeD)     $ modify (\gd -> gd {cameraData = moveCamera   (cameraData gd) (SDL.V2 (-10)   0)})
+    when (isButtonDown inp SDL.KeycodeLeft)  $ modifyCamera (rotateCamera   1)
+    when (isButtonDown inp SDL.KeycodeRight) $ modifyCamera (rotateCamera (-1))
+    when (isButtonDown inp SDL.KeycodeUp)    $ modifyCamera (zoomCamera   1.1)
+    when (isButtonDown inp SDL.KeycodeDown)  $ modifyCamera (zoomCamera   0.9)
+    when (isButtonDown inp SDL.KeycodeW)     $ modifyCamera (moveCamera   (SDL.V2    0 (-10)))
+    when (isButtonDown inp SDL.KeycodeS)     $ modifyCamera (moveCamera   (SDL.V2    0   10))
+    when (isButtonDown inp SDL.KeycodeA)     $ modifyCamera (moveCamera   (SDL.V2   10    0))
+    when (isButtonDown inp SDL.KeycodeD)     $ modifyCamera (moveCamera   (SDL.V2 (-10)   0))
     where
-    rotateCamera c r = c {cRotation = cRotation c + r}
-    zoomCamera   c z = c {cZoom     = cZoom c     * z}
-    moveCamera   c v = c {cPosition = cPosition c + v}
+    modifyCamera :: (CameraData -> CameraData) -> Minibrain ()
+    modifyCamera f = modify $ \gd -> gd {cameraData = f (cameraData gd)}
+    rotateCamera r c = c {cRotation = cRotation c + r}
+    zoomCamera   z c = c {cZoom     = cZoom c     * z}
+    moveCamera   v c = c {cPosition = cPosition c + v}

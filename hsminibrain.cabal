@@ -20,7 +20,7 @@ executable hsminibrain
   build-depends:       base >=4.11,
                        sdl2, sdl2-mixer, sdl2-ttf,
                        vector, mtl, safe-exceptions, containers, fgl,
-                       gloss-rendering, linear, lens
+                       gloss-rendering, linear, lens, generic-lens
   hs-source-dirs:      src
   other-modules:       Types, Globals, Input, Scene, Scene.Editor, Render,
                        GameData

@@ -17,6 +17,7 @@ editorBackgroundColor = mkColor  47  68  81 255
 backgroundLines       = mkColor  72  90 102 255
 background            = mkColor  47  68  81 255
 perceptronBodyColor   = mkColor  79 127 141 255
+perceptronSelectedBodyColor = mkColor 117 187 206 255
 selectionLineColor    = mkColor 113 180 198 255
 selectionFillColor    = mkColor 113 180 198 63
 pinColor              = mkColor 206 201 193 255

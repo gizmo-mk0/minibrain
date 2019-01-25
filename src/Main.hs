@@ -18,9 +18,9 @@ import Globals
 import Render
 
 
-width = 800 :: Float
+width = 1600 :: Float
 c_width = fromIntegral $ floor width
-height = 600 :: Float
+height = 1000 :: Float
 c_height = fromIntegral $ floor height
 
 main :: IO ()

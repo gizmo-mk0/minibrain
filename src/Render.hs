@@ -76,7 +76,8 @@ renderBriefing = undefined
 renderEditor :: Minibrain G.Picture
 renderEditor = do
     
-    perceptrons <- gets (nodes . editorData . sceneData)
+    perceptrons <- gets (getUnselectedNodes . editorData . sceneData)
+    selectedPerceptrons <- gets (getSelectedNodes . editorData . sceneData)
     connections <- gets (edges . editorData . sceneData)
     selection <- gets (selectionRect . editorData . sceneData)
     let selectionPicture =
@@ -85,20 +86,22 @@ renderEditor = do
                 Just selRect -> renderSelection selRect
     return $ G.Color background
         --    $ renderBackground
-           $ G.Pictures $ map renderPerceptron perceptrons
+           $ G.Pictures $ map (renderPerceptron False) perceptrons
+                       ++ map (renderPerceptron True)  selectedPerceptrons
                        ++ map renderConnection connections
                        ++ [selectionPicture]
     
 
     where
-    renderPerceptron :: Perceptron -> G.Picture
-    renderPerceptron p =
+    renderPerceptron :: Bool -> Perceptron -> G.Picture
+    renderPerceptron s p =
         let w            = perceptronWidth
             h            = getPerceptronHeight p
             size         = SDL.V2 w h
             (SDL.V2 x y) = position p
-            body = G.Color perceptronBodyColor $
-                            fillRoundRectangle size perceptronBodyRoundness
+            body = G.Color (if s then perceptronBodyColor
+                                 else perceptronSelectedBodyColor)
+                            $ fillRoundRectangle size perceptronBodyRoundness
             pins = map (renderPin p)
                        (zip [0..inputPinCount p - 1] (repeat InputPin) ++
                        zip [0..outputPinCount p - 1] (repeat OutputPin))

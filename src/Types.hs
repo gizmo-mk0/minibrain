@@ -12,6 +12,9 @@ data Rect2f = Rect2f
             { topleft :: Vector2f
             , size    :: Vector2f }
 
+rectAroundPosition :: Vector2f -> Vector2f -> Rect2f
+rectAroundPosition pos size = Rect2f (pos - (size / 2)) size
+
 -- Gets rid of negative sizes
 normalizeRect :: Rect2f -> Rect2f
 normalizeRect (Rect2f (SDL.V2 x y) (SDL.V2 w h)) =

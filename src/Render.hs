@@ -60,6 +60,7 @@ renderCurrentScene = do
             Editor     -> renderEditor
             Simulation -> renderSimulation
             Quit       -> return G.Blank
+    -- TODO make zoom relative to the screen center instead of the world center
     liftIO $ G.displayPicture (w, h) (G.makeColor 0 0 0 0) s zoom
            $ G.Translate dx dy
            $ G.Rotate rotation
@@ -80,16 +81,16 @@ renderEditor = do
     selectedPerceptrons <- gets (getSelectedNodes . editorData . sceneData)
     connections <- gets (edges . editorData . sceneData)
     selection <- gets (selectionRect . editorData . sceneData)
-    let selectionPicture =
+    let selectionRect =
             case selection of
                 Nothing -> G.Blank
                 Just selRect -> renderSelection selRect
     return $ G.Color background
         --    $ renderBackground
-           $ G.Pictures $ map (renderPerceptron False) perceptrons
-                       ++ map (renderPerceptron True)  selectedPerceptrons
+           $ G.Pictures $ map (renderPerceptron True)  selectedPerceptrons
                        ++ map renderConnection connections
-                       ++ [selectionPicture]
+                       ++ map (renderPerceptron False) perceptrons
+                       ++ [selectionRect]
     
 
     where

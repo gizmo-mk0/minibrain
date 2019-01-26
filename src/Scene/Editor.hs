@@ -34,6 +34,7 @@ data EditorData  = EditorData
                  { graph          :: EditorGraph
                  , selectionRect  :: Maybe Rect2f
                  , selectedNodes  :: [(Int, Vector2f)]
+                 , selectedPin    :: Maybe (Int, (PinType, Int, Vector2f))
                  , mousePressedAt :: Vector2f
                  , currentTool    :: Maybe EditorTool }
                  deriving (Generic)
@@ -53,6 +54,7 @@ testEditorData =
         $ G.insNode (0, Perceptron 3 2 (SDL.V2 100 100)) G.empty )
         Nothing
         []
+        Nothing
         (SDL.V2 0 0)
         Nothing
 
@@ -63,6 +65,18 @@ getPerceptronRect p =
         pos = position p
         halfSize = SDL.V2 (w / 2) (h / 2)
     in  Rect2f (pos - halfSize) (halfSize * 2)
+
+getPinRects :: Perceptron -> [(PinType, Int, Vector2f)] -- pintype, pin num, pos
+getPinRects p =
+    let srcPins =
+            map (\n -> (InputPin, n, getPinRelativePosition p n InputPin))
+                [0..inputPinCount p]
+        dstPins =
+            map (\n -> (OutputPin, n, getPinRelativePosition p n OutputPin))
+                [0..outputPinCount p]
+        percPos = position p
+    in  map (\(pt, pn, pinPos) -> (pt, pn, pinPos + percPos))
+            (srcPins ++ dstPins)
 
 getPerceptronHeight :: Perceptron -> Float
 getPerceptronHeight n =
@@ -137,3 +151,12 @@ collectSelectedNodes EditorData{..} =
 updateSelectedNodes :: EditorData -> [(Int, Vector2f)]
 updateSelectedNodes EditorData{..} =
     nodesWithPosition ((`elem` (map fst selectedNodes)) . fst) graph
+
+getPinAt :: Vector2f -> EditorGraph -> Maybe (Int, (PinType, Int, Vector2f))
+getPinAt p g =
+    let nodes = G.labNodes g
+        rects = concatMap (\(n, perc) -> zip (repeat n) (getPinRects perc)) nodes
+        mkRect pinPos = rectAroundPosition pinPos (SDL.V2 pinWidth pinHeight)
+    in  listToMaybe
+        . filter (\(_, (_, _, pinPos)) -> pointInRect p (mkRect pinPos))
+        $ rects

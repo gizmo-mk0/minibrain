@@ -100,16 +100,16 @@ advanceEditor = do
                 (case getNodeAt mPos (graph ed) of
                     Just n  ->  
                         ed & field @"currentTool"   .~ Just Move
-                           & field @"selectedNodes" .~
+                            & field @"selectedNodes" .~
                                 (if (fst n) `elem` (map fst (selectedNodes ed))
                                     then selectedNodes ed
                                     else [n])
                     Nothing ->  ed & field @"currentTool"   .~ Just Select
-                                   & field @"selectedNodes" .~ [])
+                                    & field @"selectedNodes" .~ [])
                 & field @"mousePressedAt" .~ mPos
         modify (\gd@GameData{..} -> gd {sceneData = sceneData
                             {editorData = newEditorData}})
-    -- if left mouse is down
+    -- -- if left mouse is down
     --    if move tool is active
     --        move all selected nodes
     --    if select tool is active
@@ -144,7 +144,7 @@ advanceEditor = do
                         ed & field @"selectedNodes" .~ updateSelectedNodes ed
                     _           -> ed)
                     & field @"selectionRect" .~ Nothing
-                    & field @"currentTool"   .~ Nothing
+                    & field @"currentTool"   .~ Just Move
         modify (\gd@GameData{..} -> gd {sceneData = sceneData
                             {editorData = newEditorData}})
     if isButtonDown inp SDL.KeycodeEscape

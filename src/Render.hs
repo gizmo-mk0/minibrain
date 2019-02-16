@@ -44,53 +44,49 @@ fillRoundRectangle (SDL.V2 w h) r =
                       , (-(w / 2) + r,  (h / 2) - r)
                       , ( (w / 2) - r,  (h / 2) - r) ]
 
-renderCurrentScene :: Minibrain ()
-renderCurrentScene = do
-    (SDL.V2 w h)   <- asks getWindowSize
-    s              <- asks getGlossState
-    window         <- asks getWindow
-    zoom           <- gets (cZoom . cameraData)
-    rotation       <- gets (cRotation . cameraData)
-    (SDL.V2 dx dy) <- gets (cPosition . cameraData)
-    scene          <- gets (currentScene . sceneData)
-    sceneGeometry <-
-        case scene of
-            Title      -> renderTitle
-            Briefing   -> renderBriefing
-            Editor     -> renderEditor
-            Simulation -> renderSimulation
-            Quit       -> return G.Blank
+renderCurrentScene :: Config -> GameData -> IO ()
+renderCurrentScene (Config window (SDL.V2 w h) s)
+                   (GameData sd (CameraData (SDL.V2 dx dy) rotation zoom))
+                   = do
+    let scene         = currentScene sd
+        sceneGeometry =
+            case scene of
+                Title      -> renderTitle
+                Briefing   -> renderBriefing
+                Editor     -> renderEditor
+                Simulation -> renderSimulation
+                Quit       -> return G.Blank
     -- TODO make zoom relative to the screen center instead of the world center
     liftIO $ G.displayPicture (w, h) (G.makeColor 0 0 0 0) s zoom
            $ G.Translate dx dy
            $ G.Rotate rotation
            $ G.Scale zoom zoom
            $ sceneGeometry
+           $ sd
     SDL.glSwapWindow window
 
-renderTitle :: Minibrain G.Picture
+renderTitle :: SceneData -> G.Picture
 renderTitle = undefined
 
-renderBriefing :: Minibrain G.Picture
+renderBriefing :: SceneData -> G.Picture
 renderBriefing = undefined
 
-renderEditor :: Minibrain G.Picture
-renderEditor = do
-    
-    perceptrons <- gets (getUnselectedNodes . editorData . sceneData)
-    selectedPerceptrons <- gets (getSelectedNodes . editorData . sceneData)
-    connections <- gets (edges . editorData . sceneData)
-    selection <- gets (selectionRect . editorData . sceneData)
-    let selectionRect =
+renderEditor :: SceneData -> G.Picture
+renderEditor sd =
+    let perceptrons = (getUnselectedNodes . editorData) sd
+        selectedPerceptrons = (getSelectedNodes . editorData) sd
+        connections = (edges . editorData) sd
+        selection = (selectionRect . editorData) sd
+        selectionShape =
             case selection of
                 Nothing -> G.Blank
                 Just selRect -> renderSelection selRect
-    return $ G.Color background
+    in  G.Color background
         --    $ renderBackground
            $ G.Pictures $ map (renderPerceptron True)  selectedPerceptrons
                        ++ map renderConnection connections
                        ++ map (renderPerceptron False) perceptrons
-                       ++ [selectionRect]
+                       ++ [selectionShape]
     
 
     where
@@ -135,5 +131,5 @@ renderEditor = do
                                           (SDL.V2 p2x p2y) 1) coords
                 , G.Color selectionFillColor $ G.Polygon points ]
 
-renderSimulation :: Minibrain G.Picture
+renderSimulation :: SceneData -> G.Picture
 renderSimulation = undefined

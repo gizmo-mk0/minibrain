@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveGeneric #-}
+
 module Scene
     ( Scene (..)
     , SceneData (..)
@@ -10,6 +12,7 @@ module Scene
 --
 import qualified Data.IntMap as Map
 
+import GHC.Generics (Generic)
 import Scene.Editor
 
 data SceneData = SceneData
@@ -18,6 +21,7 @@ data SceneData = SceneData
                , briefingData   :: BriefingData
                , editorData     :: EditorData
                , simulationData :: SimulationData }
+               deriving (Generic)
 
 data Scene = Title
            | Briefing
@@ -29,3 +33,4 @@ data Scene = Title
 data TitleData = TitleData
 data BriefingData = BriefingData
 data SimulationData = SimulationData
+

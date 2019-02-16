@@ -11,6 +11,7 @@ type Vector2i = SDL.V2 Int
 data Rect2f = Rect2f
             { topleft :: Vector2f
             , size    :: Vector2f }
+            deriving (Eq)
 
 rectAroundPosition :: Vector2f -> Vector2f -> Rect2f
 rectAroundPosition pos size = Rect2f (pos - (size / 2)) size

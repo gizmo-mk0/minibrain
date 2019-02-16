@@ -34,9 +34,9 @@ data EditorData  = EditorData
                  { graph          :: EditorGraph
                  , selectionRect  :: Maybe Rect2f
                  , selectedNodes  :: [(Int, Vector2f)]
-                 , selectedPin    :: Maybe (Int, (PinType, Int, Vector2f))
-                 , mousePressedAt :: Vector2f
-                 , currentTool    :: Maybe EditorTool }
+                 , selectedPin    :: Maybe (Int, (PinType, Int, Vector2f)) }
+                --  , mousePressedAt :: Vector2f
+                --  , currentTool    :: Maybe EditorTool }
                  deriving (Generic)
 
 data PinType = InputPin | OutputPin
@@ -49,13 +49,17 @@ defaultEditorData = testEditorData -- EditorData G.empty
 testEditorData :: EditorData
 testEditorData =
     EditorData
-        ( G.insEdge (0, 1, Connection 0 1 0)
-        $ G.insNode (1, Perceptron 3 2 (SDL.V2 300 100))
-        $ G.insNode (0, Perceptron 3 2 (SDL.V2 100 100)) G.empty )
+        ( G.insEdge (0, 1, Connection 0 0 0)
+        $ G.insEdge (0, 3, Connection 1 0 0)
+        $ G.insEdge (2, 3, Connection 0 1 0)
+        $ G.insEdge (3, 4, Connection 0 0 0)
+        $ G.insNode (4, Perceptron 2 2 (SDL.V2 400 200))
+        $ G.insNode (3, Perceptron 2 1 (SDL.V2 200 200))
+        $ G.insNode (2, Perceptron 3 3 (SDL.V2   0 200))
+        $ G.insNode (1, Perceptron 2 3 (SDL.V2 200   0))
+        $ G.insNode (0, Perceptron 3 2 (SDL.V2   0   0)) G.empty )
         Nothing
         []
-        Nothing
-        (SDL.V2 0 0)
         Nothing
 
 getPerceptronRect :: Perceptron -> Rect2f
@@ -123,30 +127,33 @@ getPinRelativePosition p n t =
 getPinAbsolutePosition :: Perceptron -> Int -> PinType -> Vector2f
 getPinAbsolutePosition p n t = position p + getPinRelativePosition p n t
 
-nodesWithPosition :: (G.LNode Perceptron -> Bool) -> EditorGraph -> [(Int, Vector2f)]
+nodesWithPosition :: (G.LNode Perceptron -> Bool) -> EditorGraph
+                  -> [(Int, Vector2f)]
 nodesWithPosition f = fmap (\(l, p) -> (l, position p)) . filter f . G.labNodes
 
 getNodeAt :: Vector2f -> EditorGraph -> Maybe (Int, Vector2f)
-getNodeAt p = listToMaybe . nodesWithPosition (pointInRect p . getPerceptronRect . snd)
+getNodeAt p =
+    listToMaybe . nodesWithPosition (pointInRect p . getPerceptronRect . snd)
 
 moveNodeTo :: Vector2f -> Perceptron -> Perceptron
 moveNodeTo v p@Perceptron{..} = p {position = v}
 
-moveSelectedNodes :: EditorData -> Vector2f -> EditorData
+moveSelectedNodes :: EditorData -> Vector2f -> EditorGraph
 moveSelectedNodes ed@EditorData{..} vec =
-    ed {graph = G.gmap (\(p, v, l, s) ->
+    G.gmap (\(p, v, l, s) ->
                 if v `elem` (map fst selectedNodes)
-                    then (p, v, moveNodeTo (newPos v p vec) l, s)
-                    else (p, v, l, s)) graph}
+                    then (p, v, moveNodeTo (newPos v vec) l, s)
+                    else (p, v, l, s)) graph
     where
-    newPos ix p vec =
+    newPos ix vec =
         (snd . fromJust . find ((== ix) . fst) $ selectedNodes) + vec
 
 collectSelectedNodes :: EditorData -> [(Int, Vector2f)]
 collectSelectedNodes EditorData{..} =
     case selectionRect of
         Nothing -> []
-        Just sr -> nodesWithPosition (doRectsIntersect sr . getPerceptronRect . snd) graph
+        Just sr -> nodesWithPosition ( doRectsIntersect sr
+                                     . getPerceptronRect . snd) graph
 
 updateSelectedNodes :: EditorData -> [(Int, Vector2f)]
 updateSelectedNodes EditorData{..} =
@@ -155,8 +162,12 @@ updateSelectedNodes EditorData{..} =
 getPinAt :: Vector2f -> EditorGraph -> Maybe (Int, (PinType, Int, Vector2f))
 getPinAt p g =
     let nodes = G.labNodes g
-        rects = concatMap (\(n, perc) -> zip (repeat n) (getPinRects perc)) nodes
+        rects = concatMap (\(n, perc) -> zip (repeat n) (getPinRects perc))
+                          nodes
         mkRect pinPos = rectAroundPosition pinPos (SDL.V2 pinWidth pinHeight)
     in  listToMaybe
         . filter (\(_, (_, _, pinPos)) -> pointInRect p (mkRect pinPos))
         $ rects
+
+isNodeSelected :: EditorData -> Int -> Bool
+isNodeSelected ed n = n `elem` (fmap fst $ selectedNodes ed)

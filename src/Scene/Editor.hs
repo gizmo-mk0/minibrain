@@ -18,6 +18,10 @@ import Globals
 
 type EditorGraph = G.Gr Perceptron Connection
 
+type NodeIndex = Int
+type PinIndex = Int
+type PinInfo = (NodeIndex, (PinType, PinIndex, Vector2f))
+
 -- The Perceptron stores the number of available pins and its own position
 data Perceptron  = Perceptron
                  { inputPinCount  :: Int
@@ -26,20 +30,20 @@ data Perceptron  = Perceptron
 
 -- The Connection stores which pin is connected to which pin
 data Connection  = Connection
-                 { srcPinNumber :: Int
-                 , dstPinNumber :: Int
+                 { srcPinNumber :: PinIndex
+                 , dstPinNumber :: PinIndex
                  , gain         :: Float }
 
 data EditorData  = EditorData
                  { graph          :: EditorGraph
                  , selectionRect  :: Maybe Rect2f
-                 , selectedNodes  :: [(Int, Vector2f)]
-                 , selectedPin    :: Maybe (Int, (PinType, Int, Vector2f)) }
+                 , selectedNodes  :: [(NodeIndex, Vector2f)]
+                 , selectedPin    :: Maybe PinInfo }
                 --  , mousePressedAt :: Vector2f
                 --  , currentTool    :: Maybe EditorTool }
                  deriving (Generic)
 
-data PinType = InputPin | OutputPin
+data PinType = InputPin | OutputPin deriving (Eq)
 
 data EditorTool = Move | Select | Connect deriving (Eq)
 
@@ -50,14 +54,14 @@ testEditorData :: EditorData
 testEditorData =
     EditorData
         ( G.insEdge (0, 1, Connection 0 0 0)
-        $ G.insEdge (0, 3, Connection 1 0 0)
-        $ G.insEdge (2, 3, Connection 0 1 0)
+        $ G.insEdge (0, 3, Connection 0 0 0)
+        $ G.insEdge (2, 3, Connection 0 0 0)
         $ G.insEdge (3, 4, Connection 0 0 0)
-        $ G.insNode (4, Perceptron 2 2 (SDL.V2 400 200))
-        $ G.insNode (3, Perceptron 2 1 (SDL.V2 200 200))
-        $ G.insNode (2, Perceptron 3 3 (SDL.V2   0 200))
-        $ G.insNode (1, Perceptron 2 3 (SDL.V2 200   0))
-        $ G.insNode (0, Perceptron 3 2 (SDL.V2   0   0)) G.empty )
+        $ G.insNode (4, Perceptron 1 1 (SDL.V2 400   0))
+        $ G.insNode (3, Perceptron 1 1 (SDL.V2 200   0))
+        $ G.insNode (2, Perceptron 1 1 (SDL.V2   0   0))
+        $ G.insNode (1, Perceptron 1 1 (SDL.V2 200 200))
+        $ G.insNode (0, Perceptron 1 1 (SDL.V2   0 200)) G.empty )
         Nothing
         []
         Nothing
@@ -171,3 +175,11 @@ getPinAt p g =
 
 isNodeSelected :: EditorData -> Int -> Bool
 isNodeSelected ed n = n `elem` (fmap fst $ selectedNodes ed)
+
+connect :: EditorGraph -> (PinInfo, PinInfo) -> EditorGraph
+connect graph ((n1, (pt1, _, _)), (n2, (pt2, _, _))) =
+    if pt1 /= pt2
+        then if pt1 == OutputPin
+            then G.insEdge (n1, n2, Connection 0 0 0) graph
+            else G.insEdge (n2, n1, Connection 0 0 0) graph
+        else graph

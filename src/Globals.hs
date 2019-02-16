@@ -28,6 +28,6 @@ perceptronWidth, perceptronModuleHeight, perceptronBodyRoundness, pinWidth,
 perceptronWidth         = 100
 perceptronModuleHeight  = 40
 perceptronBodyRoundness = 10
-pinWidth                = 20
+pinWidth                = 40
 pinHeight               = perceptronModuleHeight * 0.6
 connectionWidth         = 10

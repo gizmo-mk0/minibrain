@@ -64,6 +64,7 @@ initData :: GameData
 initData = GameData (SceneData Editor TitleData BriefingData defaultEditorData
                                SimulationData)
                     (CameraData (SDL.V2 0 0) 0 1)
+                    (SDL.V2 0 0)
 
 mainLoop :: Config -> (Handler InputEvent, Handler ()) -> IORef GameData
          -> IO ()

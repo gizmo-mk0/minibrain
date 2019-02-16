@@ -46,14 +46,14 @@ fillRoundRectangle (SDL.V2 w h) r =
 
 renderCurrentScene :: Config -> GameData -> IO ()
 renderCurrentScene (Config window (SDL.V2 w h) s)
-                   (GameData sd (CameraData (SDL.V2 dx dy) rotation zoom))
+                   (GameData sd (CameraData (SDL.V2 dx dy) rotation zoom) md)
                    = do
     let scene         = currentScene sd
         sceneGeometry =
             case scene of
                 Title      -> renderTitle
                 Briefing   -> renderBriefing
-                Editor     -> renderEditor
+                Editor     -> renderEditor md
                 Simulation -> renderSimulation
                 Quit       -> return G.Blank
     -- TODO make zoom relative to the screen center instead of the world center
@@ -71,24 +71,23 @@ renderTitle = undefined
 renderBriefing :: SceneData -> G.Picture
 renderBriefing = undefined
 
-renderEditor :: SceneData -> G.Picture
-renderEditor sd =
-    let perceptrons = (getUnselectedNodes . editorData) sd
+renderEditor :: Vector2f -> SceneData -> G.Picture
+renderEditor md sd =
+    let perceptrons         = (getUnselectedNodes . editorData) sd
         selectedPerceptrons = (getSelectedNodes . editorData) sd
-        connections = (edges . editorData) sd
-        selection = (selectionRect . editorData) sd
+        connections         = (edges . editorData) sd
+        selection           = (selectionRect . editorData) sd
         selectionShape =
             case selection of
                 Nothing -> G.Blank
                 Just selRect -> renderSelection selRect
+        activePin = (selectedPin . editorData) sd
     in  G.Color background
         --    $ renderBackground
            $ G.Pictures $ map (renderPerceptron True)  selectedPerceptrons
                        ++ map renderConnection connections
                        ++ map (renderPerceptron False) perceptrons
-                       ++ [selectionShape]
-    
-
+                       ++ [selectionShape, connectionToolLine md activePin]
     where
     renderPerceptron :: Bool -> Perceptron -> G.Picture
     renderPerceptron s p =
@@ -130,6 +129,11 @@ renderEditor sd =
                                 thickLine (SDL.V2 p1x p1y)
                                           (SDL.V2 p2x p2y) 1) coords
                 , G.Color selectionFillColor $ G.Polygon points ]
+    connectionToolLine :: Vector2f -> Maybe (Int, (PinType, Int, Vector2f))
+                       -> G.Picture
+    connectionToolLine md (Just (_, (_, _, pp))) =
+        G.Color pinColor $ thickLine md pp connectionWidth
+    connectionToolLine _ _ = G.Blank
 
 renderSimulation :: SceneData -> G.Picture
 renderSimulation = undefined

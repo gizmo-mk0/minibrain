@@ -56,3 +56,10 @@ rectArea r =
 
 doRectsIntersect :: Rect2f -> Rect2f -> Bool
 doRectsIntersect r1 = isJust . (rectsIntersect r1)
+
+snapTo :: Int -> Vector2f -> Vector2f
+snapTo n v = fmap (snapf n) v
+    where
+    snapf :: Int -> Float -> Float
+    snapf n x = fromIntegral
+              $ ((fromIntegral $ floor x) `div` n) * (fromIntegral n)

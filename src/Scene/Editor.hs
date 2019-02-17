@@ -183,3 +183,6 @@ connect graph ((n1, (pt1, _, _)), (n2, (pt2, _, _))) =
             then G.insEdge (n1, n2, Connection 0 0 0) graph
             else G.insEdge (n2, n1, Connection 0 0 0) graph
         else graph
+
+snapGraph :: EditorGraph -> EditorGraph
+snapGraph = G.nmap (\p -> p {position = snapTo editorGridSize (position p)})

@@ -137,8 +137,8 @@ sceneNetwork cfg (GameData sd cd md) gdref (inp, frame) = mdo
                                     <*> editorDataB
                                     <*> pure (simulationData sd)
         cameraDataB = pure cd
-        graphE = unionWith const moveNodesE connectE
-        moveNodesE = fmap (\(ed, mp) -> moveSelectedNodes ed mp)
+        graphE = fmap snapGraph $ unionWith const moveNodesE connectE
+        moveNodesE = fmap (\(ed, delta) -> moveSelectedNodes ed delta)
                           (  ((,) <$> editorDataB <*> dragB)
                           <@ (whenE (fmap (== Just Move) currentToolB) events))
         connectE = fmap (\(ed, mp) ->

@@ -31,3 +31,6 @@ perceptronBodyRoundness = 10
 pinWidth                = 40
 pinHeight               = perceptronModuleHeight * 0.6
 connectionWidth         = 10
+
+editorGridSize :: Int
+editorGridSize = 50

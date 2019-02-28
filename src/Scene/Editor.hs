@@ -12,6 +12,8 @@ import Data.Maybe (fromJust, listToMaybe)
 import Data.List (find)
 import Foreign.C.Types (CInt)
 import GHC.Generics (Generic)
+import PathFinding.Grid
+import PathFinding.Algorithm
 
 import Types
 import Globals
@@ -32,7 +34,8 @@ data Perceptron  = Perceptron
 data Connection  = Connection
                  { srcPinNumber :: PinIndex
                  , dstPinNumber :: PinIndex
-                 , gain         :: Float }
+                 , gain         :: Float
+                 , path         :: [Vector2f] }
 
 data EditorData  = EditorData
                  { graph          :: EditorGraph
@@ -45,7 +48,11 @@ data EditorData  = EditorData
 
 data PinType = InputPin | OutputPin deriving (Eq)
 
-data EditorTool = Move | Select | Connect deriving (Eq)
+otherPin :: PinType -> PinType
+otherPin InputPin = OutputPin
+otherPin OutputPin = InputPin
+
+data EditorTool = Move | Select | Connect | Tune deriving (Eq)
 
 defaultEditorData :: EditorData
 defaultEditorData = testEditorData -- EditorData G.empty
@@ -53,10 +60,10 @@ defaultEditorData = testEditorData -- EditorData G.empty
 testEditorData :: EditorData
 testEditorData =
     EditorData
-        ( G.insEdge (0, 1, Connection 0 0 0)
-        $ G.insEdge (0, 3, Connection 0 0 0)
-        $ G.insEdge (2, 3, Connection 0 0 0)
-        $ G.insEdge (3, 4, Connection 0 0 0)
+        ( G.insEdge (0, 1, Connection 0 0 0 [])
+        $ G.insEdge (0, 3, Connection 0 0 0 [])
+        $ G.insEdge (2, 3, Connection 0 0 0 [])
+        $ G.insEdge (3, 4, Connection 0 0 0 [])
         $ G.insNode (4, Perceptron 1 1 (SDL.V2 400   0))
         $ G.insNode (3, Perceptron 1 1 (SDL.V2 200   0))
         $ G.insNode (2, Perceptron 1 1 (SDL.V2   0   0))
@@ -176,13 +183,65 @@ getPinAt p g =
 isNodeSelected :: EditorData -> Int -> Bool
 isNodeSelected ed n = n `elem` (fmap fst $ selectedNodes ed)
 
+-- TODO check if this connection is not already in the graph
 connect :: EditorGraph -> (PinInfo, PinInfo) -> EditorGraph
 connect graph ((n1, (pt1, _, _)), (n2, (pt2, _, _))) =
     if pt1 /= pt2
         then if pt1 == OutputPin
-            then G.insEdge (n1, n2, Connection 0 0 0) graph
-            else G.insEdge (n2, n1, Connection 0 0 0) graph
+            then G.insEdge (n1, n2, Connection 0 0 0 []) graph
+            else G.insEdge (n2, n1, Connection 0 0 0 []) graph
         else graph
 
 snapGraph :: EditorGraph -> EditorGraph
 snapGraph = G.nmap (\p -> p {position = snapTo editorGridSize (position p)})
+
+graphSize :: EditorGraph -> Rect2f
+graphSize graph = Rect2f topLeft (bottomRight - topLeft)
+    where
+    firstNodePos = position . snd. head . G.labNodes $ graph
+    topLeft     = G.ufold (\(_, _, perc, _) p ->
+                                selectCorner min (position perc) p)
+                          firstNodePos graph
+    bottomRight = G.ufold (\(_, _, perc, _) p ->
+                                selectCorner max (position perc) p)
+                          firstNodePos graph
+    selectCorner :: (a -> a -> a) -> (SDL.V2 a) -> (SDL.V2 a) -> (SDL.V2 a)
+    selectCorner f (SDL.V2 x1 y1) (SDL.V2 x2 y2) = SDL.V2 x y
+        where
+        x = f x1 x2
+        y = f y1 y2
+
+pathFind :: EditorGraph -> Vector2f -> Vector2f -> [Vector2f]
+pathFind g p1 p2 = [p1, p2] -- map getCell $ findPath (0, 0) (tx, ty) (Grid carte neighbor)
+    where
+    carte :: [[Vector2f]]
+    carte = [generateRow row | row <- [y1..y2]]
+    generateRow y  = [SDL.V2 px y | px <- [x1..x2]]
+    (SDL.V2 x1 y1) = p1 - (size (graphSize g))
+    (SDL.V2 x2 y2) = p1 + (size (graphSize g))
+    (SDL.V2 tx ty) = fmap (floor . (/ (fromIntegral editorGridSize))) (p2 - p1)
+    neighbor       = gridNeighbors4 (const True)
+    getCell (cellX, cellY) = (carte !! cellY) !! cellX
+
+-- maps `pathFind` to all edges in a graph
+recalculateConnections :: EditorGraph -> EditorGraph
+recalculateConnections g = (flip G.gmap) g $ \(n1, nIx, nLab, n2) ->
+    ( map (connectTo nLab) n1
+    , nIx
+    , nLab
+    , map (connectFrom nLab) n2)
+    where
+    findNode :: G.Node -> Perceptron
+    findNode n = snd . fromJust . find ((== n) . fst) . G.labNodes $ g
+    connectTo :: Perceptron -> (Connection, G.Node) -> (Connection, G.Node)
+    connectTo n2 (c, n1_ix) = (c {path = pathFind g p1 p2}, n1_ix)
+        where
+        n1 = findNode n1_ix
+        p1 = getPinAbsolutePosition n1 (srcPinNumber c) OutputPin
+        p2 = getPinAbsolutePosition n2 (dstPinNumber c) InputPin
+    connectFrom :: Perceptron -> (Connection, G.Node) -> (Connection, G.Node)
+    connectFrom n1 (c, n2_ix) = (c {path = pathFind g p1 p2}, n2_ix)
+        where
+        n2 = findNode n2_ix
+        p1 = getPinAbsolutePosition n1 (srcPinNumber c) OutputPin
+        p2 = getPinAbsolutePosition n2 (dstPinNumber c) InputPin

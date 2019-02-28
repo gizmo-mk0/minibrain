@@ -21,7 +21,7 @@ executable hsminibrain
                        sdl2, sdl2-mixer, sdl2-ttf,
                        vector, mtl, safe-exceptions, containers, fgl,
                        gloss-rendering, linear, lens, generic-lens,
-                       reactive-banana, time
+                       reactive-banana, time, pathfinding
   hs-source-dirs:      src
   other-modules:       Types, Globals, Input, Scene, Scene.Editor, Render,
                        GameData

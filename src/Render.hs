@@ -107,11 +107,19 @@ renderEditor md sd =
         let (SDL.V2 px py) = getPinRelativePosition perc n t
             size           = SDL.V2 pinWidth pinHeight
         in G.Translate px py $ G.Color pinColor $ fillRoundRectangle size 0
+    -- renderConnection :: (Perceptron, Perceptron, Connection) -> G.Picture
+    -- renderConnection (p1, p2, c) =
+    --     let pos1 = getPinAbsolutePosition p1 (srcPinNumber c) OutputPin
+    --         pos2 = getPinAbsolutePosition p2 (dstPinNumber c) InputPin
+    --     in G.Color pinColor $ thickLine pos1 pos2 connectionWidth
     renderConnection :: (Perceptron, Perceptron, Connection) -> G.Picture
     renderConnection (p1, p2, c) =
         let pos1 = getPinAbsolutePosition p1 (srcPinNumber c) OutputPin
             pos2 = getPinAbsolutePosition p2 (dstPinNumber c) InputPin
-        in G.Color pinColor $ thickLine pos1 pos2 connectionWidth
+            lines = zip (pos1:(path c)) ((path c) ++ [pos2])
+        in G.Color pinColor
+         $ G.Pictures
+         $ map (\(lStart, lEnd) -> thickLine lStart lEnd connectionWidth) lines
     -- TODO
     -- renderBackground :: Minibrain ()
     -- renderBackground = undefined

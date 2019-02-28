@@ -137,9 +137,9 @@ sceneNetwork cfg (GameData sd cd md) gdref (inp, frame) = mdo
                                     <*> editorDataB
                                     <*> pure (simulationData sd)
         cameraDataB = pure cd
-        graphE = fmap snapGraph $ unionWith const moveNodesE connectE
+        graphE = fmap (recalculateConnections . snapGraph) $ unionWith const moveNodesE connectE
         moveNodesE = fmap (\(ed, delta) -> moveSelectedNodes ed delta)
-                          (  ((,) <$> editorDataB <*> dragB)
+                          (((,) <$> editorDataB <*> dragB)
                           <@ (whenE (fmap (== Just Move) currentToolB) events))
         connectE = fmap (\(ed, mp) ->
                         connect (graph ed)
@@ -149,10 +149,12 @@ sceneNetwork cfg (GameData sd cd md) gdref (inp, frame) = mdo
                    <@ (whenE (fmap (/= Nothing) selectedPinB)
                              (whenE pinUnderMouse leftRelease))
         selectedNodesE =
-            unions
+            unions -- if left button is released, update the selected nodes' pos
+                [ fmap (const . updateSelectedNodes)
+                       (editorDataB <@ leftRelease)
                 -- if the node under the mouse is not part os the selection,
                 -- make this node the sole new selection
-                [ fmap (\(ed, mp) -> const [fromJust $ getNodeAt mp (graph ed)])
+                , fmap (\(ed, mp) -> const [fromJust $ getNodeAt mp (graph ed)])
                        (((,) <$> editorDataB <*> mousePos) <@
                             (whenE (fmap ((== Just False))
                                          nodeUnderMouse) leftPress))

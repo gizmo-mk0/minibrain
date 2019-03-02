@@ -12,8 +12,8 @@ import Data.Maybe (fromJust, listToMaybe)
 import Data.List (find)
 import Foreign.C.Types (CInt)
 import GHC.Generics (Generic)
-import PathFinding.Grid
-import PathFinding.Algorithm
+import Data.Graph.AStar
+import qualified Data.HashSet as H
 
 import Types
 import Globals
@@ -77,6 +77,14 @@ getPerceptronRect :: Perceptron -> Rect2f
 getPerceptronRect p =
     let h   = getPerceptronHeight p
         w   = perceptronWidth
+        pos = position p
+        halfSize = SDL.V2 (w / 2) (h / 2)
+    in  Rect2f (pos - halfSize) (halfSize * 2)
+
+getPerceptronGridSize :: Perceptron -> Rect2f
+getPerceptronGridSize p =
+    let h   = getPerceptronHeight p + fromIntegral editorGridSize
+        w   = perceptronWidth + fromIntegral editorGridSize
         pos = position p
         halfSize = SDL.V2 (w / 2) (h / 2)
     in  Rect2f (pos - halfSize) (halfSize * 2)
@@ -146,6 +154,10 @@ getNodeAt :: Vector2f -> EditorGraph -> Maybe (Int, Vector2f)
 getNodeAt p =
     listToMaybe . nodesWithPosition (pointInRect p . getPerceptronRect . snd)
 
+isOccupied :: Vector2f -> EditorGraph -> Bool
+isOccupied p =
+    not . null . nodesWithPosition (pointInRect p . getPerceptronGridSize . snd)
+    
 moveNodeTo :: Vector2f -> Perceptron -> Perceptron
 moveNodeTo v p@Perceptron{..} = p {position = v}
 
@@ -212,16 +224,46 @@ graphSize graph = Rect2f topLeft (bottomRight - topLeft)
         y = f y1 y2
 
 pathFind :: EditorGraph -> Vector2f -> Vector2f -> [Vector2f]
-pathFind g p1 p2 = [p1, p2] -- map getCell $ findPath (0, 0) (tx, ty) (Grid carte neighbor)
+pathFind g p1 p2 =
+    case aStar neighbors distance (heuristics p2) goal (1, p1) of
+        Just path -> map snd path
+        Nothing   -> []
     where
-    carte :: [[Vector2f]]
-    carte = [generateRow row | row <- [y1..y2]]
-    generateRow y  = [SDL.V2 px y | px <- [x1..x2]]
-    (SDL.V2 x1 y1) = p1 - (size (graphSize g))
-    (SDL.V2 x2 y2) = p1 + (size (graphSize g))
-    (SDL.V2 tx ty) = fmap (floor . (/ (fromIntegral editorGridSize))) (p2 - p1)
-    neighbor       = gridNeighbors4 (const True)
-    getCell (cellX, cellY) = (carte !! cellY) !! cellX
+    editorGridSizeF = fromIntegral editorGridSize
+    neighbors :: (Float, Vector2f) -> H.HashSet (Float, Vector2f)
+    neighbors (d, p) =
+        let (SDL.V2 dx dy) = fmap abs (p - p2)
+            (SDL.V2 maxX maxY) = size (graphSize g)
+            neighborList = H.filter (not . ((flip isOccupied) g) . snd)
+                (H.fromList
+                    [ (1.5, p + (SDL.V2 (-editorGridSizeF) (-editorGridSizeF)))
+                    , (1  , p + (SDL.V2 (-editorGridSizeF)                 0))
+                    , (1.5, p + (SDL.V2 (-editorGridSizeF)   editorGridSizeF))
+                    , (1  , p + (SDL.V2                 0  (-editorGridSizeF)))
+                    , (1  , p + (SDL.V2                 0    editorGridSizeF))
+                    , (1.5, p + (SDL.V2   editorGridSizeF  (-editorGridSizeF)))
+                    , (1  , p + (SDL.V2   editorGridSizeF                  0))
+                    , (1.5, p + (SDL.V2   editorGridSizeF   editorGridSizeF)) ])
+        in  if dx > maxX || dy > maxY then H.empty else neighborList
+    distance :: (Float, Vector2f) -> (Float, Vector2f) -> Float
+    distance p1 = fst
+    heuristics :: Vector2f -> (Float, Vector2f) -> Float
+    heuristics target@(SDL.V2 tx ty) (_, SDL.V2 px py) =
+        let deltaV = abs (py - ty)
+            deltaH = abs (px - tx)
+            less = min deltaH deltaV
+            more = max deltaH deltaV
+        in  (less * 1.5) + (more - less)
+    goal :: (Float, Vector2f) -> Bool
+    goal (_, p) = let (SDL.V2 dx dy) = fmap abs (p2 - p)
+                  in  dx < editorGridSizeF && dy < editorGridSizeF
+    -- carte :: [[Vector2f]]
+    -- carte = [generateRow row | row <- [y1..y2]]
+    -- generateRow y  = [SDL.V2 px y | px <- [x1..x2]]
+    -- (SDL.V2 x1 y1) = p1 - (size (graphSize g))
+    -- (SDL.V2 x2 y2) = p1 + (size (graphSize g))
+    -- (SDL.V2 tx ty) = fmap (floor . (/ (fromIntegral editorGridSize))) (p2 - p1)
+    -- getCell (cellX, cellY) = (carte !! cellY) !! cellX
 
 -- maps `pathFind` to all edges in a graph
 recalculateConnections :: EditorGraph -> EditorGraph

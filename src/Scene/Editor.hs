@@ -232,19 +232,23 @@ pathFind g p1 p2 =
     editorGridSizeF = fromIntegral editorGridSize
     neighbors :: (Float, Vector2f) -> H.HashSet (Float, Vector2f)
     neighbors (d, p) =
-        let (SDL.V2 dx dy) = fmap abs (p - p2)
-            (SDL.V2 maxX maxY) = size (graphSize g)
-            neighborList = H.filter (not . ((flip isOccupied) g) . snd)
-                (H.fromList
-                    [ (1.5, p + (SDL.V2 (-editorGridSizeF) (-editorGridSizeF)))
-                    , (1  , p + (SDL.V2 (-editorGridSizeF)                 0))
-                    , (1.5, p + (SDL.V2 (-editorGridSizeF)   editorGridSizeF))
-                    , (1  , p + (SDL.V2                 0  (-editorGridSizeF)))
-                    , (1  , p + (SDL.V2                 0    editorGridSizeF))
-                    , (1.5, p + (SDL.V2   editorGridSizeF  (-editorGridSizeF)))
-                    , (1  , p + (SDL.V2   editorGridSizeF                  0))
-                    , (1.5, p + (SDL.V2   editorGridSizeF   editorGridSizeF)) ])
-        in  if dx > maxX || dy > maxY then H.empty else neighborList
+        -- H.filter (not . ((flip isOccupied) g) . snd)
+            H.fromList $ map (\p' -> (calculateCost (p + p'), p + p'))
+                [ (SDL.V2 (-editorGridSizeF) (-editorGridSizeF))
+                , (SDL.V2 (-editorGridSizeF)                 0)
+                , (SDL.V2 (-editorGridSizeF)   editorGridSizeF)
+                , (SDL.V2                 0  (-editorGridSizeF))
+                , (SDL.V2                 0    editorGridSizeF)
+                , (SDL.V2   editorGridSizeF  (-editorGridSizeF))
+                , (SDL.V2   editorGridSizeF                  0)
+                , (SDL.V2   editorGridSizeF   editorGridSizeF) ]
+        where
+        calculateCost p@(SDL.V2 x y) =
+            if isOccupied p g
+                then 50
+                else if abs x > 0 && abs y > 0
+                    then 1.5
+                    else 1
     distance :: (Float, Vector2f) -> (Float, Vector2f) -> Float
     distance p1 = fst
     heuristics :: Vector2f -> (Float, Vector2f) -> Float

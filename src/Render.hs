@@ -14,11 +14,11 @@ import GameData
 import Scene
 
 bezier :: [Vector2f] -> Float -> Vector2f
-bezier vs t | length vs == 4 = fmap (* ((1 - t) ** 3))       (vs !! 0)
-                             + fmap (* (3*((1 - t) ** 2) * t)) (vs !! 1)
-                             + fmap (* (3*(1 - t) * (t ** 2))) (vs !! 2)
-                             + fmap (* (t ** 3))             (vs !! 3)
-            | otherwise = error "bezier called with less or more than 4 points"
+bezier vs t | length vs == 4 = fmap (* ((1 - t) ** 3))           (vs !! 0)
+                             + fmap (* (3 * ((1 - t) ** 2) * t)) (vs !! 1)
+                             + fmap (* (3 * (1 - t) * (t ** 2))) (vs !! 2)
+                             + fmap (* (t ** 3))                 (vs !! 3)
+            | otherwise = error "bezier called with fewer or more than 4 points"
 
 circleSolid :: Float -> G.Picture
 circleSolid r = G.ThickCircle (r / 2) r

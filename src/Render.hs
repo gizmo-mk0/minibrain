@@ -13,6 +13,13 @@ import Globals
 import GameData
 import Scene
 
+bezier :: [Vector2f] -> Float -> Vector2f
+bezier vs t | length vs == 4 = fmap (* ((1 - t) ** 3))       (vs !! 0)
+                             + fmap (* (3*((1 - t) ** 2) * t)) (vs !! 1)
+                             + fmap (* (3*(1 - t) * (t ** 2))) (vs !! 2)
+                             + fmap (* (t ** 3))             (vs !! 3)
+            | otherwise = error "bezier called with less or more than 4 points"
+
 circleSolid :: Float -> G.Picture
 circleSolid r = G.ThickCircle (r / 2) r
 
@@ -114,12 +121,20 @@ renderEditor md sd =
     --     in G.Color pinColor $ thickLine pos1 pos2 connectionWidth
     renderConnection :: (Perceptron, Perceptron, Connection) -> G.Picture
     renderConnection (p1, p2, c) =
-        let pos1 = getPinAbsolutePosition p1 (srcPinNumber c) OutputPin
-            pos2 = getPinAbsolutePosition p2 (dstPinNumber c) InputPin
-            lines = zip (pos1:(path c)) ((path c) ++ [pos2])
-        in G.Color pinColor
-         $ G.Pictures
-         $ map (\(lStart, lEnd) -> thickLine lStart lEnd connectionWidth) lines
+        let pos1@(SDL.V2 x1 y1) = getPinAbsolutePosition p1 (srcPinNumber c) OutputPin
+            pos2@(SDL.V2 x2 y2) = getPinAbsolutePosition p2 (dstPinNumber c) InputPin
+            xMid = (x1 + x2) / 2
+            xDelta = abs (x1 - x2)
+            pos3 = SDL.V2 (max xMid (x1 + xDelta)) y1
+            pos4 = SDL.V2 (min xMid (x2 - xDelta)) y2
+            points = map (bezier [pos1, pos3, pos4, pos2]) (map (/20) [0..20])
+        in G.Color pinColor $
+                G.Pictures $
+                    (map (\(start, end) -> thickLine start end connectionWidth) (zip points (drop 1 points)))
+                    -- ++ [ thickLine pos1 pos3 connectionWidth
+                    --    , thickLine pos3 pos4 connectionWidth
+                    --    , thickLine pos4 pos2 connectionWidth]
+        
     -- TODO
     -- renderBackground :: Minibrain ()
     -- renderBackground = undefined

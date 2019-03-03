@@ -46,7 +46,7 @@ data Config = Config
 data GameData = GameData
               { sceneData     :: SceneData
               , cameraData    :: CameraData
-              , mousePosition :: Vector2f}
+              , mousePosBition :: Vector2f}
               deriving (Generic)
 
 data CameraData = CameraData
@@ -91,7 +91,7 @@ sceneNetwork cfg (GameData sd cd md) gdref (inp, frame) = mdo
     frameEvents <- fromAddHandler frame
     events <- accumE (MouseMoveEvent (SDL.V2 0 0))
                         (unions [fmap const inputEvents, id <$ frameEvents])
-    mousePos <- stepper (SDL.V2 0 0)
+    mousePosB <- stepper (SDL.V2 0 0)
               $ fmap (\(cData, x) -> convertPoint cData x)
               $ (fmap (\cd' -> (,) cd') cameraDataB) <@> mouseMoveEvents
     graphB <- stepper (graph $ editorData sd) graphE
@@ -108,36 +108,37 @@ sceneNetwork cfg (GameData sd cd md) gdref (inp, frame) = mdo
     nodeUnderMouse <- stepper Nothing
                    $ fmap (\(ed, mp) -> fmap (isNodeSelected ed . fst)
                                       $ getNodeAt mp (graph ed))
-                          (((,) <$> editorDataB <*> mousePos) <@ events)
+                          (((,) <$> editorDataB <*> mousePosB) <@ events)
     currentToolB <- accumB Nothing currentToolE
     selectedPinB <- stepper Nothing
                   $ unionWith const
                               ( fmap (\(ed, mp) -> (getPinAt mp (graph ed)))
-                              $ ((,) <$> editorDataB <*> mousePos) <@ leftPress)
+                              $ ((,) <$> editorDataB <*> mousePosB) <@ leftPress)
                               ( Nothing <$ leftRelease )
     pinUnderMouse <- stepper False
                              ( fmap (\(ed, mp) ->
                                         isJust $ (getPinAt mp (graph ed)))
-                             $ ((,) <$> editorDataB <*> mousePos) <@ events)
+                             $ ((,) <$> editorDataB <*> mousePosB) <@ events)
     let quitE = filterE (== KeyboardEvent SDL.KeycodeEscape SDL.Pressed) events
         newGameData =
             unionWith const
                 ((changeScene Quit (GameData sd cd md)) <$ quitE)
                 (gameDataB <@ events)
-        dragB = pure (-) <*> mousePos <*> lastClickB
+        dragB = pure (-) <*> mousePosB <*> lastClickB
         selectionBoxB = pure Just <*> (pure Rect2f <*> lastClickB <*> dragB)
         editorDataB = pure EditorData <*> graphB
                                       <*> selectionRectB
                                       <*> selectedNodesB
                                       <*> selectedPinB
-        gameDataB = pure GameData <*> sceneDataB <*> cameraDataB <*> mousePos
+        gameDataB = pure GameData <*> sceneDataB <*> cameraDataB <*> mousePosB
         sceneDataB = pure SceneData <*> pure (currentScene sd)
                                     <*> pure (titleData sd)
                                     <*> pure (briefingData sd)
                                     <*> editorDataB
                                     <*> pure (simulationData sd)
         cameraDataB = pure cd
-        graphE = fmap (recalculateConnections . snapGraph) $ unionWith const moveNodesE connectE
+        graphE = unionWith const (unionWith const moveNodesE connectE)
+                                 createNodeE
         moveNodesE = fmap (\(ed, delta) -> moveSelectedNodes ed delta)
                           (((,) <$> editorDataB <*> dragB)
                           <@ (whenE (fmap (== Just Move) currentToolB) events))
@@ -145,9 +146,13 @@ sceneNetwork cfg (GameData sd cd md) gdref (inp, frame) = mdo
                         connect (graph ed)
                                 ( (fromJust . selectedPin $ ed)
                                 , (fromJust . getPinAt mp . graph $ ed)))
-                 $ ((,) <$> editorDataB <*> mousePos)
+                 $ ((,) <$> editorDataB <*> mousePosB)
                    <@ (whenE (fmap (/= Nothing) selectedPinB)
                              (whenE pinUnderMouse leftRelease))
+        -- TODO for some reason, the created node is actually infinitely many
+        -- TODO nodes. It works well for emptyLeftPress.
+        createNodeE = fmap (\(ed, mpos) -> addNodeAt (graph ed) mpos)
+                           ((,) <$> editorDataB <*> mousePosB) <@ doubleClickE
         selectedNodesE =
             unions -- if left button is released, update the selected nodes' pos
                 [ fmap (const . updateSelectedNodes)
@@ -155,7 +160,7 @@ sceneNetwork cfg (GameData sd cd md) gdref (inp, frame) = mdo
                 -- if the node under the mouse is not part os the selection,
                 -- make this node the sole new selection
                 , fmap (\(ed, mp) -> const [fromJust $ getNodeAt mp (graph ed)])
-                       (((,) <$> editorDataB <*> mousePos) <@
+                       (((,) <$> editorDataB <*> mousePosB) <@
                             (whenE (fmap ((== Just False))
                                          nodeUnderMouse) leftPress))
                 -- If the player has clicked on an empty part, unselect
@@ -171,18 +176,22 @@ sceneNetwork cfg (GameData sd cd md) gdref (inp, frame) = mdo
                    , (const (Just Connect)) <$ leftPressOnPin
                    , (const (Just Move))    <$ leftPressOnNode
                    , (const (Just Select))  <$ emptyLeftPress ]
-        
+        doubleClickE :: Event InputEvent
+        doubleClickE =
+            filterE (\case MouseClickEvent 2 SDL.ButtonLeft SDL.Pressed -> True
+                           _ -> False)
+                    events
         leftPress :: Event InputEvent
         leftPress =
-            filterE (\case MouseClickEvent SDL.ButtonLeft SDL.Pressed -> True
-                           _                                          -> False)
+            filterE (\case MouseClickEvent 1 SDL.ButtonLeft SDL.Pressed -> True
+                           _ -> False)
                     events
         leftPressAt :: Event Vector2f
-        leftPressAt = fmap snd $ ((,) <$> editorDataB <*> mousePos) <@ leftPress
+        leftPressAt = mousePosB <@ leftPress
         leftRelease :: Event InputEvent
         leftRelease =
-            filterE (\case MouseClickEvent SDL.ButtonLeft SDL.Released -> True
-                           _                                           -> False)
+            filterE (\case MouseClickEvent 1 SDL.ButtonLeft SDL.Released -> True
+                           _ -> False)
                     events
         mouseMoveEvents :: Event Vector2f
         mouseMoveEvents = fmap (\(MouseMoveEvent x) -> x)
@@ -195,96 +204,21 @@ sceneNetwork cfg (GameData sd cd md) gdref (inp, frame) = mdo
         leftPressOnNode =
             fmap snd
             . filterE (\(ed, mp) -> (isJust $ getNodeAt mp (graph ed)))
-            $ ((,) <$> editorDataB <*> mousePos) <@ leftPress
+            $ ((,) <$> editorDataB <*> mousePosB) <@ leftPress
         leftPressOnPin :: Event (Int, (PinType, Int, Vector2f))
         leftPressOnPin =
             filterJust
             . fmap (\(ed, mp) -> (getPinAt mp (graph ed)))
-            $ ((,) <$> editorDataB <*> mousePos) <@ leftPress
+            $ ((,) <$> editorDataB <*> mousePosB) <@ leftPress
         emptyLeftPress :: Event Vector2f
         emptyLeftPress =
             fmap snd
             . filterE (\(ed, mp) -> (getNodeAt mp (graph ed) == Nothing)
                                  && (getPinAt  mp (graph ed) == Nothing))
-            $ ((,) <$> editorDataB <*> mousePos) <@ leftPress
+            $ ((,) <$> editorDataB <*> mousePosB) <@ leftPress
     reactimate $ fmap (writeIORef gdref) newGameData
 
 -- titleNetwork = undefined
 -- simulationNetwork = undefined
 -- briefingNetwork = undefined
 
--- editorNetwork :: GameData -> SceneNetwork
--- editorNetwork = undefined
--- advanceEditor :: Minibrain ()
--- advanceEditor = do
---     -- get input
---     inp <- gets inputData
---     -- Convert mouse coordinate into world coordinates
---     mPos <- toWorldCoords (fmap fromIntegral . mousePosition . mouse $ inp)
---     let leftClick    = isMouseButtonJustPressed  inp SDL.ButtonLeft
---         leftDown     = isMouseButtonDown         inp SDL.ButtonLeft
---         leftReleased = isMouseButtonJustReleased inp SDL.ButtonLeft
---     -- if left mouse button was just pressed:
---     --   if there is anode under the mouse
---     --      activate Move tool
---     --      if the node is not selected
---     --         delete all selection and make it the only selected node
---     --   otherwise delete all selection
---     -- update last mouse click position
---     when leftClick $ do
---         ed <- gets (editorData . sceneData)
---         let newEditorData =
---                 (case getNodeAt mPos (graph ed) of
---                     Just n  ->  
---                         ed & field @"currentTool"   .~ Just Move
---                             & field @"selectedNodes" .~
---                                 (if (fst n) `elem` (map fst (selectedNodes ed))
---                                     then selectedNodes ed
---                                     else [n])
---                     Nothing ->  ed & field @"currentTool"   .~ Just Select
---                                     & field @"selectedNodes" .~ [])
---                 & field @"mousePressedAt" .~ mPos
---         modify (\gd@GameData{..} -> gd {sceneData = sceneData
---                             {editorData = newEditorData}})
---     -- -- if left mouse is down
---     --    if move tool is active
---     --        move all selected nodes
---     --    if select tool is active
---     --        update selection rectangle
---     when leftDown $ do
---         ed <- gets (editorData . sceneData)
---         let newEditorData =
---                 (case currentTool ed of
---                     Just Move   ->
---                         moveSelectedNodes ed (mPos - mousePressedAt ed)
---                     Just Select ->
---                         ed & field @"selectionRect" .~
---                             (Just (Rect2f (mousePressedAt ed)
---                                   (mPos - mousePressedAt ed)))
---                     _ -> ed) -- this shouldn't happen
---         modify (\gd@GameData{..} -> gd {sceneData = sceneData
---                             {editorData = newEditorData}})
---     -- if left mouse button is just released
---     --    if selection tool was active
---     --        make nodes inside the selection rectangle the new selected nodes
---     --    if move was active
---     --        update selected nodes initial position
---     -- delete selection rect
---     -- deactivate current tool
---     when leftReleased $ do
---         ed <- gets (editorData . sceneData)
---         let newEditorData =
---                 (case currentTool ed of
---                     Just Select ->
---                         ed & field @"selectedNodes" .~ collectSelectedNodes ed
---                     Just Move   ->
---                         ed & field @"selectedNodes" .~ updateSelectedNodes ed
---                     _           -> ed)
---                     & field @"selectionRect" .~ Nothing
---                     & field @"currentTool"   .~ Just Move
---         modify (\gd@GameData{..} -> gd {sceneData = sceneData
---                             {editorData = newEditorData}})
---     if isButtonDown inp SDL.KeycodeEscape
---         then changeScene Quit
---         else return ()
-    

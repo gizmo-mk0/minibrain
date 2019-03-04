@@ -149,10 +149,8 @@ sceneNetwork cfg (GameData sd cd md) gdref (inp, frame) = mdo
                  $ ((,) <$> editorDataB <*> mousePosB)
                    <@ (whenE (fmap (/= Nothing) selectedPinB)
                              (whenE pinUnderMouse leftRelease))
-        -- TODO for some reason, the created node is actually infinitely many
-        -- TODO nodes. It works well for emptyLeftPress.
         createNodeE = fmap (\(ed, mpos) -> addNodeAt (graph ed) mpos)
-                           ((,) <$> editorDataB <*> mousePosB) <@ doubleClickE
+                           ((,) <$> editorDataB <*> mousePosB) <@ emptyDClickE
         selectedNodesE =
             unions -- if left button is released, update the selected nodes' pos
                 [ fmap (const . updateSelectedNodes)
@@ -176,6 +174,11 @@ sceneNetwork cfg (GameData sd cd md) gdref (inp, frame) = mdo
                    , (const (Just Connect)) <$ leftPressOnPin
                    , (const (Just Move))    <$ leftPressOnNode
                    , (const (Just Select))  <$ emptyLeftPress ]
+        emptyDClickE :: Event Vector2f
+        emptyDClickE = fmap snd
+                     . filterE (\(ed, mp) -> (getNodeAt mp (graph ed) == Nothing)
+                                          && (getPinAt  mp (graph ed) == Nothing))
+                     $ ((,) <$> editorDataB <*> mousePosB) <@ doubleClickE
         doubleClickE :: Event InputEvent
         doubleClickE =
             filterE (\case MouseClickEvent 2 SDL.ButtonLeft SDL.Pressed -> True

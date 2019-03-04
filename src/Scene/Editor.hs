@@ -163,8 +163,8 @@ getPinRelativePosition p n t =
                      - (perceptronModuleHeight / 2)
         parentHeight = getPerceptronHeight p
     in  case t of
-        InputPin  -> (SDL.V2 (-perceptronWidth / 2) verticalPos)
-        OutputPin -> (SDL.V2 ( perceptronWidth / 2) verticalPos)
+        InputPin  -> (SDL.V2 (- (pinWidth / 2) - perceptronWidth / 2) verticalPos)
+        OutputPin -> (SDL.V2 ((pinWidth / 2) + perceptronWidth / 2) verticalPos)
 
 getPinAbsolutePosition :: Perceptron -> Int -> PinType -> Vector2f
 getPinAbsolutePosition p n t = position p + getPinRelativePosition p n t

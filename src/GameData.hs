@@ -137,8 +137,13 @@ sceneNetwork cfg (GameData sd cd md) gdref (inp, frame) = mdo
                                     <*> editorDataB
                                     <*> pure (simulationData sd)
         cameraDataB = pure cd
-        graphE = unionWith const (unionWith const moveNodesE connectE)
-                                 createNodeE
+        -- graphE = unionWith const (unionWith const moveNodesE connectE)
+        --                          createNodeE
+        graphE = foldl1 (unionWith const)
+                        [ moveNodesE
+                        , connectE
+                        , createNodeE
+                        , deleteNodesE ]
         moveNodesE = fmap (\(ed, delta) -> moveSelectedNodes ed delta)
                           (((,) <$> editorDataB <*> dragB)
                           <@ (whenE (fmap (== Just Move) currentToolB) events))
@@ -151,6 +156,9 @@ sceneNetwork cfg (GameData sd cd md) gdref (inp, frame) = mdo
                              (whenE pinUnderMouse leftRelease))
         createNodeE = fmap (\(ed, mpos) -> addNodeAt (graph ed) mpos)
                            ((,) <$> editorDataB <*> mousePosB) <@ emptyDClickE
+        deleteNodesE =
+            fmap (\(g, sn) -> deleteSelectedNodes (fmap fst sn) g)
+                 (((,) <$> graphB <*> selectedNodesB) <@ pressedDelE)
         selectedNodesE =
             unions -- if left button is released, update the selected nodes' pos
                 [ fmap (const . updateSelectedNodes)
@@ -219,6 +227,9 @@ sceneNetwork cfg (GameData sd cd md) gdref (inp, frame) = mdo
             . filterE (\(ed, mp) -> (getNodeAt mp (graph ed) == Nothing)
                                  && (getPinAt  mp (graph ed) == Nothing))
             $ ((,) <$> editorDataB <*> mousePosB) <@ leftPress
+        pressedDelE :: Event InputEvent
+        pressedDelE =
+            filterE (== KeyboardEvent SDL.KeycodeDelete SDL.Pressed) events
     reactimate $ fmap (writeIORef gdref) newGameData
 
 -- titleNetwork = undefined

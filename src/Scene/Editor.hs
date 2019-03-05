@@ -74,22 +74,6 @@ testEditorData =
     where
     add = flip addNodeAt
 
--- testEditorData :: EditorData
--- testEditorData =
---     EditorData
---         ( G.insEdge (0, 1, Connection 0 0 0 [])
---         $ G.insEdge (0, 3, Connection 0 0 0 [])
---         $ G.insEdge (2, 3, Connection 0 0 0 [])
---         $ G.insEdge (3, 4, Connection 0 0 0 [])
---         $ G.insNode (4, Perceptron 1 1 (SDL.V2 400   0))
---         $ G.insNode (3, Perceptron 1 1 (SDL.V2 200   0))
---         $ G.insNode (2, Perceptron 1 1 (SDL.V2   0   0))
---         $ G.insNode (1, Perceptron 1 1 (SDL.V2 200 200))
---         $ G.insNode (0, Perceptron 1 1 (SDL.V2   0 200)) G.empty )
---         Nothing
---         []
---         Nothing
-
 getPerceptronRect :: Perceptron -> Rect2f
 getPerceptronRect p =
     let h   = getPerceptronHeight p
@@ -204,6 +188,9 @@ collectSelectedNodes EditorData{..} =
 updateSelectedNodes :: EditorData -> [(Int, Vector2f)]
 updateSelectedNodes EditorData{..} =
     nodesWithPosition ((`elem` (map fst selectedNodes)) . fst) graph
+
+deleteSelectedNodes :: [NodeIndex] -> EditorGraph -> EditorGraph
+deleteSelectedNodes ixs g = G.delNodes ixs g
 
 getPinAt :: Vector2f -> EditorGraph -> Maybe (Int, (PinType, Int, Vector2f))
 getPinAt p g =

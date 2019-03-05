@@ -30,20 +30,19 @@ isPointInPoly poly p@(SDL.V2 x y) =
                $ sides
 
 lineToPoly :: Float -> [Vector2f] -> [[Vector2f]]
-lineToPoly _ [] = error "lineToPoly called with empty list"
+lineToPoly _ []     = error "lineToPoly called with empty list"
 lineToPoly _ (_:[]) = error "lineToPoly called with one element"
 lineToPoly thickness line' =
     let halfThickness = thickness / 2
         duplicateFirst (x1:x2:xs) = (2 * x1 - x2):x1:x2:xs
         line = reverse . duplicateFirst . reverse . duplicateFirst $ line'
         normals = map (fmap (* halfThickness) . SDL.signorm . SDL.perp)
-                . zipWith (-) line
-                $ (drop 1 line)
-        avgNormals = map (fmap (/2)) . zipWith (+) normals . drop 1 $ normals
-        leftPoints = zipWith (+) line' avgNormals
+                . zipWith (-) line $ (drop 1 line)
+        avgNormals  = map (fmap (/2)) . zipWith (+) normals . drop 1 $ normals
+        leftPoints  = zipWith (+) line' avgNormals
         rightPoints = zipWith (-) line' avgNormals
-        pointPairs = zip leftPoints rightPoints
-        pointQuads = zip pointPairs (drop 1 pointPairs)
+        pointPairs  = zip leftPoints rightPoints
+        pointQuads  = zip pointPairs (drop 1 pointPairs)
     in  map (\((p1, p2), (p4, p3)) -> [p1, p2, p3, p4]) pointQuads
 
 -- does the infinite horizontal line, starting from p, intersect the p1-p2 line

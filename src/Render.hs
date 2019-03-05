@@ -7,11 +7,65 @@ import qualified Graphics.Gloss.Rendering as G
 
 import Control.Monad.State.Strict (gets)
 import Control.Monad.Reader (asks, liftIO)
+import Control.Lens ((^.))
+import Linear.Metric (norm)
 
 import Types
 import Globals
 import GameData
 import Scene
+
+isPointInPoly :: [Vector2f] -> Vector2f -> Bool
+isPointInPoly poly p@(SDL.V2 x y) =
+    let minX = minimum (map (^.SDL._x) poly)
+        maxX = maximum (map (^.SDL._x) poly)
+        minY = minimum (map (^.SDL._y) poly)
+        maxY = maximum (map (^.SDL._y) poly)
+        sides = zip poly (drop 1 (cycle poly))
+        isEven = (== 0) . (`mod` 2)
+    in  if x < minX || x > maxX || y < minY || y > maxY
+            then False
+            else not . isEven . length
+               . filter (doIntersect ((SDL.V2 (minX - 1) y), p))
+               $ sides
+
+lineToPoly :: Float -> [Vector2f] -> [[Vector2f]]
+lineToPoly _ [] = error "lineToPoly called with empty list"
+lineToPoly _ (_:[]) = error "lineToPoly called with one element"
+lineToPoly thickness line' =
+    let halfThickness = thickness / 2
+        duplicateFirst (x1:x2:xs) = (2 * x1 - x2):x1:x2:xs
+        line = reverse . duplicateFirst . reverse . duplicateFirst $ line'
+        normals = map (fmap (* halfThickness) . SDL.signorm . SDL.perp)
+                . zipWith (-) line
+                $ (drop 1 line)
+        avgNormals = map (fmap (/2)) . zipWith (+) normals . drop 1 $ normals
+        leftPoints = zipWith (+) line' avgNormals
+        rightPoints = zipWith (-) line' avgNormals
+        pointPairs = zip leftPoints rightPoints
+        pointQuads = zip pointPairs (drop 1 pointPairs)
+    in  map (\((p1, p2), (p4, p3)) -> [p1, p2, p3, p4]) pointQuads
+
+-- does the infinite horizontal line, starting from p, intersect the p1-p2 line
+-- segment?
+doIntersect :: (Vector2f, Vector2f) -> (Vector2f, Vector2f) -> Bool
+doIntersect (SDL.V2 v1x1 v1y1, SDL.V2 v1x2 v1y2)
+            (SDL.V2 v2x1 v2y1, SDL.V2 v2x2 v2y2) =
+    let a1 = v1y2 - v1y1
+        b1 = v1x1 - v1x2
+        c1 = (v1x2 * v1y1) - (v1x1 * v1y2)
+        d1 = (a1 * v2x1) + (b1 * v2y1) + c1
+        d2 = (a1 * v2x2) + (b1 * v2y2) + c1
+        a2 = v2y2 - v2y1
+        b2 = v2x1 - v2x2
+        c2 = (v2x2 * v2y1) - (v2x1 * v2y2)
+        d3 = (a2 * v1x1) + (b2 * v1y1) + c2
+        d4 = (a2 * v1x2) + (b2 * v1y2) + c2
+    in  if (d1 > 0 && d2 > 0) || (d1 < 0 && d2 < 0)
+            then False
+            else if (d3 > 0 && d4 > 0) || (d3 < 0 && d4 < 0)
+                then False
+                else True
 
 bezier :: [Vector2f] -> Float -> Vector2f
 bezier vs t | length vs == 4 = fmap (* ((1 - t) ** 3))           (vs !! 0)
@@ -31,6 +85,16 @@ thickLine start@(SDL.V2 x1 y1) end@(SDL.V2 x2 y2) w = G.Polygon points
     l = sqrt (x * x + y * y)
     points = map (\(SDL.V2 c1 c2) -> (c1, c2))
                  [start + normal, end + normal, end - normal, start - normal]
+
+-- thickCurve :: Float -> [Vector2f] -> G.Picture
+-- thickCurve thickness points = G.Polygon . map (\(SDL.V2 x y) -> (x, y))
+--                                         $ lineToPoly thickness $ points
+
+thickCurve :: Float -> [Vector2f] -> G.Picture
+thickCurve thickness points = G.Pictures
+                            . map (G.Polygon . map (\(SDL.V2 x y) -> (x, y)))
+                            . lineToPoly thickness
+                            $ points
 
 fillRoundRectangle :: Vector2f -> Float -> G.Picture
 fillRoundRectangle (SDL.V2 w h) r =
@@ -130,8 +194,7 @@ renderEditor md sd =
             pos4 = SDL.V2 (min xMid (x2 - xDelta)) (y2 + yOffset)
             points = map (bezier [pos1, pos3, pos4, pos2]) (map (/20) [0..20])
         in G.Color pinColor $
-                G.Pictures $
-                    (map (\(start, end) -> thickLine start end connectionWidth) (zip points (drop 1 points)))
+                thickCurve connectionWidth points
                     -- ++ [ thickLine pos1 pos3 connectionWidth
                     --    , thickLine pos3 pos4 connectionWidth
                     --    , thickLine pos4 pos2 connectionWidth]

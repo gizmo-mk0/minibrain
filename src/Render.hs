@@ -9,6 +9,7 @@ import Control.Monad.State.Strict (gets)
 import Control.Monad.Reader (asks, liftIO)
 import Control.Lens ((^.))
 import Linear.Metric (norm)
+import Data.Fixed (mod')
 
 import Types
 import Globals
@@ -171,45 +172,52 @@ renderEditor md sd =
             pins = map (renderPin p)
                        (zip [0..inputPinCount p - 1] (repeat InputPin) ++
                        zip [0..outputPinCount p - 1] (repeat OutputPin))
-        in  G.Translate x y $ G.Pictures (reverse $ body : pins)
+            knob = renderKnob (baseLevel p)
+        in  G.Translate x y $ G.Pictures (reverse $ knob:body:pins)
     renderPin :: Perceptron -> (Int, PinType) -> G.Picture
     renderPin perc (n, t) =
         let (SDL.V2 px py) = getPinRelativePosition perc n t
             size           = SDL.V2 pinWidth pinHeight
         in G.Translate px py $ G.Color pinColor $ fillRoundRectangle size 0
-    -- renderConnection :: (Perceptron, Perceptron, Connection) -> G.Picture
-    -- renderConnection (p1, p2, c) =
-    --     let pos1 = getPinAbsolutePosition p1 (srcPinNumber c) OutputPin
-    --         pos2 = getPinAbsolutePosition p2 (dstPinNumber c) InputPin
-    --     in G.Color pinColor $ thickLine pos1 pos2 connectionWidth
+    renderKnob :: Float -> G.Picture
+    renderKnob v =
+        G.Pictures [ G.Color knobBaseColor $
+                        fillRoundRectangle (SDL.V2 (editorGridSizeF)
+                                                   (editorGridSizeF / 2))
+                                           (perceptronBodyRoundness / 2)
+                   , G.Translate 0 (-editorGridSizeF / 5) $ G.Color knobColor $
+                        G.ThickArc 90 (90 - v * 90)
+                                   (editorGridSizeF / 4)
+                                   (editorGridSizeF / 6)
+                   , G.Color knobColor $
+                        thickLine (SDL.V2 0 (editorGridSizeF / 4))
+                                  (SDL.V2 0 (editorGridSizeF / 6)) 2]
     renderConnection :: (Perceptron, Perceptron, Connection) -> G.Picture
     renderConnection (p1, p2, c) =
-        let pos1@(SDL.V2 x1 y1) = getPinAbsolutePosition p1 (srcPinNumber c) OutputPin
-            pos2@(SDL.V2 x2 y2) = getPinAbsolutePosition p2 (dstPinNumber c) InputPin
-            xMid = (x1 + x2) / 2
-            xDelta = abs (x1 - x2)
+        let pos1@(SDL.V2 x1 y1) =
+                getPinAbsolutePosition p1 (srcPinNumber c) OutputPin
+            pos2@(SDL.V2 x2 y2) =
+                getPinAbsolutePosition p2 (dstPinNumber c) InputPin
+            xMid    = (x1 + x2) / 2
+            xDelta  = abs (x1 - x2)
             yOffset = if x2 < x1 then (-xDelta / 2) else 0
-            pos3 = SDL.V2 (max xMid (x1 + xDelta)) (y1 + yOffset)
-            pos4 = SDL.V2 (min xMid (x2 - xDelta)) (y2 + yOffset)
-            points = map (bezier [pos1, pos3, pos4, pos2]) (map (/20) [0..20])
+            pos3    = SDL.V2 (max xMid (x1 + xDelta)) (y1 + yOffset)
+            pos4    = SDL.V2 (min xMid (x2 - xDelta)) (y2 + yOffset)
+            points  = map (bezier [pos1, pos3, pos4, pos2]) (map (/20) [0..20])
+            midPoint@(SDL.V2 mx my) = points !! ((length points) `div` 2)
         in G.Color pinColor $
-                thickCurve connectionWidth points
-                    -- ++ [ thickLine pos1 pos3 connectionWidth
-                    --    , thickLine pos3 pos4 connectionWidth
-                    --    , thickLine pos4 pos2 connectionWidth]
+                G.Pictures $
+                    [ thickCurve connectionWidth points
+                    , G.Translate mx my $ renderKnob (gain c)]
         
     -- TODO
     -- renderBackground :: Minibrain ()
     -- renderBackground = undefined
     renderSelection :: Rect2f -> G.Picture
     renderSelection (Rect2f (SDL.V2 left top) (SDL.V2 w h)) =
-        let points =
-                [ (left,       top)
-                , ((left + w), top)
-                , ((left + w), (top + h))
-                , (left,       (top + h)) ]
+        let points = [(0, 0), (w, 0), (w, h), (0, h)]
             coords = zip points (drop 1 (cycle points))
-        in  G.Pictures
+        in  G.Translate left top $ G.Pictures
                 [ G.Color selectionLineColor $ G.Pictures $
                         map (\((p1x, p1y), (p2x, p2y)) ->
                                 thickLine (SDL.V2 p1x p1y)

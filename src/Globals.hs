@@ -21,6 +21,8 @@ perceptronSelectedBodyColor = mkColor 117 187 206 255
 selectionLineColor    = mkColor 113 180 198 255
 selectionFillColor    = mkColor 113 180 198 63
 pinColor              = mkColor 206 201 193 255
+knobBaseColor         = mkColor  46  73  81 255
+knobColor             = pinColor -- mkColor 226 221 213 255
 
 -- Sizes
 perceptronWidth, perceptronModuleHeight, perceptronBodyRoundness, pinWidth,
@@ -34,3 +36,5 @@ connectionWidth         = 10
 
 editorGridSize :: Int
 editorGridSize = 40
+editorGridSizeF :: Float
+editorGridSizeF = 40

@@ -28,6 +28,7 @@ type PinInfo = (NodeIndex, (PinType, PinIndex, Vector2f))
 data Perceptron  = Perceptron
                  { inputPinCount  :: Int
                  , outputPinCount :: Int
+                 , baseLevel      :: Float
                  , position       :: Vector2f }
 
 -- The Connection stores which pin is connected to which pin
@@ -119,7 +120,7 @@ addNodeAt :: EditorGraph -> Vector2f -> EditorGraph
 addNodeAt g p = G.insNode (ix, perc) g
     where
     ix = if G.isEmpty g then 0 else snd (G.nodeRange g) + 1
-    perc = Perceptron 1 1 p
+    perc = Perceptron 1 1 0 p
 
 getUnselectedNodes :: EditorData -> [Perceptron]
 getUnselectedNodes EditorData{..} =

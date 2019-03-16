@@ -87,15 +87,30 @@ updateSelectionRect gd p =
 
 sceneNetwork :: Config -> GameData -> IORef GameData
              -> (AddHandler InputEvent, AddHandler ()) -> MomentIO ()
-sceneNetwork cfg (GameData sd cd md) gdref (inp, frame) = mdo
-    inputEvents <- fromAddHandler inp
-     -- We need empty events every frame to counteract `stepper`'s 1-frame delay
-    frameEvents <- fromAddHandler frame
-    events <- accumE (MouseMoveEvent (SDL.V2 0 0))
+sceneNetwork cfg gd gdref (inp, frame) = mdo
+    events      <- accumE (MouseMoveEvent (SDL.V2 0 0))
                         (unions [fmap const inputEvents, id <$ frameEvents])
-    mousePosB <- stepper (SDL.V2 0 0)
-              $ fmap (\(cData, x) -> convertPoint cData x)
-              $ (fmap (\cd' -> (,) cd') cameraDataB) <@> mouseMoveEvents
+    inputEvents <- fromAddHandler inp
+    frameEvents <- fromAddHandler frame
+    mousePosB   <- stepper (SDL.V2 0 0)
+                $ fmap (\(cData, x) -> convertPoint cData x)
+                $ (fmap (\cd' -> (,) cd') cameraDataB) <@> mouseMoveEvents
+    let quitE = filterE (== KeyboardEvent SDL.KeycodeEscape SDL.Pressed) events
+        cameraDataB = pure (cameraData gd)
+        convertPoint cameraData p =
+            toWorldCoords cameraData (getWindowSize cfg) p
+        mouseMoveEvents :: Event Vector2f
+        mouseMoveEvents = fmap (\(MouseMoveEvent x) -> x)
+                        . filterE (\case MouseMoveEvent _ -> True;
+                                            _ -> False)
+                        $ events
+    newGameData <- editorNetwork gd events mousePosB cameraDataB
+    reactimate $ fmap (writeIORef gdref) newGameData
+
+editorNetwork :: GameData -> Event InputEvent -> Behavior Vector2f
+              -> Behavior CameraData
+              -> MomentIO (Event GameData)
+editorNetwork (GameData sd cd md) events mousePosB cameraDataB = mdo
     graphB <- stepper (graph $ editorData sd) graphE
     selectedNodesB <- accumB [] selectedNodesE
     lastClickB <- stepper (SDL.V2 0 0) leftPressAt
@@ -147,9 +162,6 @@ sceneNetwork cfg (GameData sd cd md) gdref (inp, frame) = mdo
                                     <*> pure (briefingData sd)
                                     <*> editorDataB
                                     <*> pure (simulationData sd)
-        cameraDataB = pure cd
-        -- graphE = unionWith const (unionWith const moveNodesE connectE)
-        --                          createNodeE
         graphE = foldl1 (unionWith const)
                         [ moveNodesE
                         , connectE
@@ -263,13 +275,6 @@ sceneNetwork cfg (GameData sd cd md) gdref (inp, frame) = mdo
             filterE (\case MouseClickEvent 1 SDL.ButtonLeft SDL.Released -> True
                            _ -> False)
                     events
-        mouseMoveEvents :: Event Vector2f
-        mouseMoveEvents = fmap (\(MouseMoveEvent x) -> x)
-                        . filterE (\case MouseMoveEvent _ -> True;
-                                            _ -> False)
-                        $ events
-        convertPoint cameraData x =
-            toWorldCoords cameraData (getWindowSize cfg) x
         leftPressOnNode :: Event Vector2f
         leftPressOnNode =
             fmap snd
@@ -289,7 +294,7 @@ sceneNetwork cfg (GameData sd cd md) gdref (inp, frame) = mdo
         pressedDelE :: Event InputEvent
         pressedDelE =
             filterE (== KeyboardEvent SDL.KeycodeDelete SDL.Pressed) events
-    reactimate $ fmap (writeIORef gdref) newGameData
+    return newGameData
 
 -- titleNetwork = undefined
 -- simulationNetwork = undefined

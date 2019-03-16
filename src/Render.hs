@@ -13,6 +13,7 @@ import Data.Fixed (mod')
 
 import Types
 import Globals
+import Utils
 import GameData
 import Scene
 
@@ -66,13 +67,6 @@ doIntersect (SDL.V2 v1x1 v1y1, SDL.V2 v1x2 v1y2)
             else if (d3 > 0 && d4 > 0) || (d3 < 0 && d4 < 0)
                 then False
                 else True
-
-bezier :: [Vector2f] -> Float -> Vector2f
-bezier vs t | length vs == 4 = fmap (* ((1 - t) ** 3))           (vs !! 0)
-                             + fmap (* (3 * ((1 - t) ** 2) * t)) (vs !! 1)
-                             + fmap (* (3 * (1 - t) * (t ** 2))) (vs !! 2)
-                             + fmap (* (t ** 3))                 (vs !! 3)
-            | otherwise = error "bezier called with fewer or more than 4 points"
 
 circleSolid :: Float -> G.Picture
 circleSolid r = G.ThickCircle (r / 2) r
@@ -182,29 +176,22 @@ renderEditor md sd =
     renderKnob :: Float -> G.Picture
     renderKnob v =
         G.Pictures [ G.Color knobBaseColor $
-                        fillRoundRectangle (SDL.V2 (editorGridSizeF)
-                                                   (editorGridSizeF / 2))
-                                           (perceptronBodyRoundness / 2)
-                   , G.Translate 0 (-editorGridSizeF / 5) $ G.Color knobColor $
+                        fillRoundRectangle (SDL.V2 knobWidth knobHeight)
+                                           knobRoundness
+                   , G.Translate 0 (-knobWidth / 6) $ G.Color knobColor $
                         G.ThickArc 90 (90 - v * 90)
-                                   (editorGridSizeF / 4)
-                                   (editorGridSizeF / 6)
-                   , G.Color knobColor $
-                        thickLine (SDL.V2 0 (editorGridSizeF / 4))
-                                  (SDL.V2 0 (editorGridSizeF / 6)) 2]
+                                   (knobWidth / 4)
+                                   (knobWidth / 6)
+                   , G.Translate 0 (-knobWidth / 6) $ G.Color knobColor $
+                        thickLine (SDL.V2 0 (knobWidth / 4 - knobWidth / 12))
+                                  (SDL.V2 0 (knobWidth / 4 + knobWidth / 12)) 2]
     renderConnection :: (Perceptron, Perceptron, Connection) -> G.Picture
     renderConnection (p1, p2, c) =
         let pos1@(SDL.V2 x1 y1) =
                 getPinAbsolutePosition p1 (srcPinNumber c) OutputPin
             pos2@(SDL.V2 x2 y2) =
                 getPinAbsolutePosition p2 (dstPinNumber c) InputPin
-            xMid    = (x1 + x2) / 2
-            xDelta  = abs (x1 - x2)
-            yOffset = if x2 < x1 then (-xDelta / 2) else 0
-            pos3    = SDL.V2 (max xMid (x1 + xDelta)) (y1 + yOffset)
-            pos4    = SDL.V2 (min xMid (x2 - xDelta)) (y2 + yOffset)
-            points  = map (bezier [pos1, pos3, pos4, pos2]) (map (/20) [0..20])
-            midPoint@(SDL.V2 mx my) = points !! ((length points) `div` 2)
+            (points, (SDL.V2 mx my)) = mkCurveWithMidpoint pos1 pos2
         in G.Color pinColor $
                 G.Pictures $
                     [ thickCurve connectionWidth points

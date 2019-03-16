@@ -26,15 +26,22 @@ knobColor             = pinColor -- mkColor 226 221 213 255
 
 -- Sizes
 perceptronWidth, perceptronModuleHeight, perceptronBodyRoundness, pinWidth,
-    pinHeight, connectionWidth :: Float
+    pinHeight, connectionWidth, knobWidth, knobHeight, knobRoundness :: Float
 perceptronWidth         = 100
 perceptronModuleHeight  = 40
 perceptronBodyRoundness = 10
 pinWidth                = 20
 pinHeight               = perceptronModuleHeight * 0.6
 connectionWidth         = 10
+knobWidth               = editorGridSizeF
+knobHeight              = editorGridSizeF / 2
+knobRoundness           = perceptronBodyRoundness / 2
 
 editorGridSize :: Int
 editorGridSize = 40
 editorGridSizeF :: Float
 editorGridSizeF = 40
+connectorSegmentCount :: Float
+connectorSegmentCount = 20
+tuneMouseDistance :: Float
+tuneMouseDistance = 100

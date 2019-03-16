@@ -37,6 +37,8 @@ import GHC.Generics (Generic)
 import Scene
 import Input
 import Types
+import Globals
+import Utils
 
 data Config = Config
             { getWindow     :: SDL.Window
@@ -97,12 +99,20 @@ sceneNetwork cfg (GameData sd cd md) gdref (inp, frame) = mdo
     graphB <- stepper (graph $ editorData sd) graphE
     selectedNodesB <- accumB [] selectedNodesE
     lastClickB <- stepper (SDL.V2 0 0) leftPressAt
+    lastRClickB <- stepper (SDL.V2 0 0) rightPressAt
     selectionRectB <- switchB (pure Nothing)
                               (unionWith const
                                          ((pure Nothing) <$ leftRelease)
                                          (selectionBoxB <$ emptyLeftPress))
-    leftButtonDownB <- stepper False (unionWith const (True <$ leftPress)
+    leftButtonDownB <- stepper False (unionWith const (True  <$ leftPress)
                                                       (False <$ leftRelease))
+    -- nodeKnobUnderMouse :: Behaviour (Int, Float)
+    nodeKnobUnderMouse <- stepper Nothing
+                        $ fmap (\(g, mp) -> getNodeKnobAt mp g)
+                        (((,) <$> graphB <*> mousePosB) <@ rightPress)
+    connectionKnobUnderMouse <- stepper Nothing
+                        $ fmap (\(g, mp) -> getConnectionKnobAt mp g)
+                        (((,) <$> graphB <*> mousePosB) <@ rightPress)
     -- nodeUnderMouse :: Behavior (Maybe Bool) - Is there a node under the
     -- mouse, and if yes, is it among the selected ones
     nodeUnderMouse <- stepper Nothing
@@ -110,11 +120,12 @@ sceneNetwork cfg (GameData sd cd md) gdref (inp, frame) = mdo
                                       $ getNodeAt mp (graph ed))
                           (((,) <$> editorDataB <*> mousePosB) <@ events)
     currentToolB <- accumB Nothing currentToolE
-    selectedPinB <- stepper Nothing
-                  $ unionWith const
-                              ( fmap (\(ed, mp) -> (getPinAt mp (graph ed)))
-                              $ ((,) <$> editorDataB <*> mousePosB) <@ leftPress)
-                              ( Nothing <$ leftRelease )
+    selectedPinB <-
+          stepper Nothing
+        $ unionWith const
+                    ( fmap (\(ed, mp) -> (getPinAt mp (graph ed)))
+                    $ ((,) <$> editorDataB <*> mousePosB) <@ leftPress)
+                    ( Nothing <$ leftRelease )
     pinUnderMouse <- stepper False
                              ( fmap (\(ed, mp) ->
                                         isJust $ (getPinAt mp (graph ed)))
@@ -143,7 +154,8 @@ sceneNetwork cfg (GameData sd cd md) gdref (inp, frame) = mdo
                         [ moveNodesE
                         , connectE
                         , createNodeE
-                        , deleteNodesE ]
+                        , deleteNodesE
+                        , tuneKnobsE ]
         moveNodesE = fmap (\(ed, delta) -> moveSelectedNodes ed delta)
                           (((,) <$> editorDataB <*> dragB)
                           <@ (whenE (fmap (== Just Move) currentToolB) events))
@@ -177,15 +189,40 @@ sceneNetwork cfg (GameData sd cd md) gdref (inp, frame) = mdo
                 , fmap (const . collectSelectedNodes)
                         (editorDataB <@ (whenE (fmap (not . (== Nothing))
                                                      selectionRectB) events))]
+        tuneKnobsE = unionWith const tuneNodesE tuneConnectionsE
+        tuneNodesE =
+            fmap (\(g, Just (n, v), SDL.V2 mx my, SDL.V2 lx ly) ->
+                    tunePerceptron n (clamp (-1) 1
+                                        (v + ((my - ly) / tuneMouseDistance)))
+                                   g)
+            $ (((,,,) <$> graphB <*> nodeKnobUnderMouse <*> mousePosB
+                      <*> lastRClickB)
+                      <@ whenE (fmap (== Just Tune) currentToolB)
+                            (whenE (fmap (/= Nothing) nodeKnobUnderMouse)
+                                events))
+        tuneConnectionsE =
+            fmap (\(g, Just (n1, n2, v), SDL.V2 mx my, SDL.V2 lx ly) ->
+                tuneConnection n1 n2 (clamp (-1) 1
+                                        (v + ((my - ly) / tuneMouseDistance)))
+                               g)
+            $ (((,,,) <$> graphB <*> connectionKnobUnderMouse <*> mousePosB
+                      <*> lastRClickB)
+                      <@ whenE (fmap (== Just Tune) currentToolB)
+                            (whenE (fmap (/= Nothing) connectionKnobUnderMouse)
+                                events))
         currentToolE =
             unions [ (const Nothing)        <$ leftRelease
+                   , (const Nothing)        <$ rightRelease
                    , (const (Just Connect)) <$ leftPressOnPin
                    , (const (Just Move))    <$ leftPressOnNode
-                   , (const (Just Select))  <$ emptyLeftPress ]
+                   , (const (Just Select))  <$ emptyLeftPress
+                   , (const (Just Tune))    <$ rightPressOnNodeKnob
+                   , (const (Just Tune))    <$ rightPressOnConnectionKnob]
         emptyDClickE :: Event Vector2f
         emptyDClickE = fmap snd
-                     . filterE (\(ed, mp) -> (getNodeAt mp (graph ed) == Nothing)
-                                          && (getPinAt  mp (graph ed) == Nothing))
+                     . filterE (\(ed, mp) ->
+                                       (getNodeAt mp (graph ed) == Nothing)
+                                    && (getPinAt  mp (graph ed) == Nothing))
                      $ ((,) <$> editorDataB <*> mousePosB) <@ doubleClickE
         doubleClickE :: Event InputEvent
         doubleClickE =
@@ -199,6 +236,28 @@ sceneNetwork cfg (GameData sd cd md) gdref (inp, frame) = mdo
                     events
         leftPressAt :: Event Vector2f
         leftPressAt = mousePosB <@ leftPress
+        rightPress :: Event InputEvent
+        rightPress =
+            filterE (\case MouseClickEvent 1 SDL.ButtonRight SDL.Pressed -> True
+                           _ -> False)
+                    events
+        rightPressAt :: Event Vector2f
+        rightPressAt = mousePosB <@ rightPress
+        rightPressOnNodeKnob :: Event (Int, Float)
+        rightPressOnNodeKnob =
+            filterJust
+            . fmap (\(g, mp) -> getNodeKnobAt mp g)
+            $ ((,) <$> graphB <*> mousePosB) <@ rightPress
+        rightPressOnConnectionKnob :: Event (Int, Int, Float)
+        rightPressOnConnectionKnob =
+            filterJust
+            . fmap (\(g, mp) -> getConnectionKnobAt mp g)
+            $ ((,) <$> graphB <*> mousePosB) <@ rightPress
+        rightRelease :: Event InputEvent
+        rightRelease =
+            filterE
+                (\case MouseClickEvent 1 SDL.ButtonRight SDL.Released -> True
+                       _ -> False) events
         leftRelease :: Event InputEvent
         leftRelease =
             filterE (\case MouseClickEvent 1 SDL.ButtonLeft SDL.Released -> True

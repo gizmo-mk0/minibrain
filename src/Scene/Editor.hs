@@ -17,6 +17,7 @@ import qualified Data.HashSet as H
 
 import Types
 import Globals
+import Utils
 
 type EditorGraph = G.Gr Perceptron Connection
 
@@ -30,12 +31,14 @@ data Perceptron  = Perceptron
                  , outputPinCount :: Int
                  , baseLevel      :: Float
                  , position       :: Vector2f }
+                 deriving (Show)
 
 -- The Connection stores which pin is connected to which pin
 data Connection  = Connection
                  { srcPinNumber :: PinIndex
                  , dstPinNumber :: PinIndex
                  , gain         :: Float }
+                 deriving (Show)
 
 data EditorData  = EditorData
                  { graph          :: EditorGraph
@@ -89,6 +92,12 @@ getPerceptronGridSize p =
         w   = perceptronWidth + fromIntegral editorGridSize
         pos = position p
         halfSize = SDL.V2 (w / 2) (h / 2)
+    in  Rect2f (pos - halfSize) (halfSize * 2)
+
+getPerceptronKnobRect :: Perceptron -> Rect2f
+getPerceptronKnobRect p =
+    let halfSize = SDL.V2 (knobWidth / 2) (knobHeight / 2)
+        pos = position p
     in  Rect2f (pos - halfSize) (halfSize * 2)
 
 getPinRects :: Perceptron -> [(PinType, Int, Vector2f)] -- pintype, pin num, pos
@@ -148,7 +157,8 @@ getPinRelativePosition p n t =
                      - (perceptronModuleHeight / 2)
         parentHeight = getPerceptronHeight p
     in  case t of
-        InputPin  -> (SDL.V2 (- (pinWidth / 2) - perceptronWidth / 2) verticalPos)
+        InputPin  ->
+            (SDL.V2 (- (pinWidth / 2) - perceptronWidth / 2) verticalPos)
         OutputPin -> (SDL.V2 ((pinWidth / 2) + perceptronWidth / 2) verticalPos)
 
 getPinAbsolutePosition :: Perceptron -> Int -> PinType -> Vector2f
@@ -193,6 +203,22 @@ updateSelectedNodes EditorData{..} =
 deleteSelectedNodes :: [NodeIndex] -> EditorGraph -> EditorGraph
 deleteSelectedNodes ixs g = G.delNodes ixs g
 
+tunePerceptron :: NodeIndex -> Float -> EditorGraph -> EditorGraph
+tunePerceptron nix level = G.gmap $ \(p, v, l, s) ->
+    if v == nix
+        then (p, v, l {baseLevel = level}, s)
+        else (p, v, l, s)
+
+tuneConnection :: NodeIndex -> NodeIndex -> Float -> EditorGraph -> EditorGraph
+tuneConnection n1 n2 level g =
+    let edge = listToMaybe
+             . filter (\(n1', n2', _) -> n1 == n1' && n2 == n2') . G.labEdges
+             $ g
+    in  case edge of
+            Nothing -> g
+            Just (_, _, c) ->
+                G.insEdge (n1, n2, c {gain = level}) . G.delEdge (n1, n2) $ g
+
 getPinAt :: Vector2f -> EditorGraph -> Maybe (Int, (PinType, Int, Vector2f))
 getPinAt p g =
     let nodes = G.labNodes g
@@ -215,8 +241,30 @@ connect graph ((n1, (pt1, _, _)), (n2, (pt2, _, _))) =
             else G.insEdge (n2, n1, Connection 0 0 0) graph
         else graph
 
--- snapGraph :: EditorGraph -> EditorGraph
--- snapGraph = G.nmap (\p -> p {position = snapTo editorGridSize (position p)})
+getNodeKnobAt :: Vector2f -> EditorGraph -> Maybe (NodeIndex, Float)
+getNodeKnobAt p g =
+    let nodes = G.labNodes g
+        mkRect pos = rectAroundPosition pos (SDL.V2 knobWidth knobHeight)
+    in  fmap (fmap baseLevel) . listToMaybe
+        . filter (pointInRect p . mkRect . position . snd) $ nodes
+
+getConnectionKnobAt :: Vector2f -> EditorGraph
+                    -> Maybe (NodeIndex, NodeIndex, Float)
+getConnectionKnobAt p g =
+    let edges = G.labEdges g
+        nodes = G.labNodes g
+        midPoint (n1, n2, c) = snd $
+            mkCurveWithMidpoint
+                (getPinAbsolutePosition (snd . (nodes !!) $ n1)
+                                        (srcPinNumber c) OutputPin)
+                (getPinAbsolutePosition (snd . (nodes !!) $ n2)
+                                        (dstPinNumber c) InputPin)
+        mkRect p = rectAroundPosition p (SDL.V2 knobWidth knobHeight)
+    in  fmap (\(n1, n2, c) -> (n1, n2, gain c)) . listToMaybe
+        . filter (pointInRect p . mkRect . midPoint) $ edges
+
+snapGraph :: EditorGraph -> EditorGraph
+snapGraph = G.nmap (\p -> p {position = snapTo editorGridSize (position p)})
 
 graphSize :: EditorGraph -> Rect2f
 graphSize graph = Rect2f topLeft (bottomRight - topLeft)

@@ -14,6 +14,7 @@ import qualified Data.IntMap as Map
 
 import GHC.Generics (Generic)
 import Scene.Editor
+import Scene.Simulation
 
 data SceneData = SceneData
                { currentScene   :: Scene
@@ -32,5 +33,3 @@ data Scene = Title
 
 data TitleData = TitleData
 data BriefingData = BriefingData
-data SimulationData = SimulationData
-

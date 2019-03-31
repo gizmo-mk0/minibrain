@@ -27,7 +27,8 @@ type PinInfo = (NodeIndex, (PinType, PinIndex, Vector2f))
 
 -- The Perceptron stores the number of available pins and its own position
 data Perceptron  = Perceptron
-                 { inputPinCount  :: Int
+                 { label          :: String
+                 , inputPinCount  :: Int
                  , outputPinCount :: Int
                  , baseLevel      :: Float
                  , position       :: Vector2f }
@@ -62,21 +63,28 @@ defaultEditorData = testEditorData -- EditorData G.empty
 
 testEditorData :: EditorData
 testEditorData =
-    EditorData
-        ( G.insEdge (0, 1, Connection 0 0 0)
-        $ G.insEdge (0, 3, Connection 0 0 0)
-        $ G.insEdge (2, 3, Connection 0 0 0)
-        $ G.insEdge (3, 4, Connection 0 0 0)
-        $ add (SDL.V2 400 0)
-        $ add (SDL.V2 200 0)
-        $ add (SDL.V2 0 0)
-        $ add (SDL.V2 200 200)
-        $ add (SDL.V2 0 200) G.empty )
-        Nothing
-        []
-        Nothing
+    EditorData g Nothing [] Nothing
     where
-    add = flip addNodeAt
+    g = mkGraph ["node1", "node 2", "node 3"] ["node4"]
+        -- ( G.insEdge (0, 1, Connection 0 0 1)
+        -- $ G.insEdge (0, 3, Connection 0 0 1)
+        -- $ G.insEdge (2, 3, Connection 0 0 1)
+        -- $ G.insEdge (3, 4, Connection 0 0 1)
+        -- $ addNodeAt (SDL.V2 400 0)
+        -- $ addNodeAt (SDL.V2 200 0)
+        -- $ addNodeAt (SDL.V2 0 0)
+        -- $ addNodeAt (SDL.V2 200 200)
+        -- $ addNodeAt (SDL.V2 0 200) G.empty )
+        -- Nothing
+        -- []
+        -- Nothing
+
+mkGraph :: [String] -> [String] -> EditorGraph
+mkGraph inputStrings outputStrings = foldl f G.empty list
+    where
+    f g (name, x, y, ip, op) = addNodeAt' name ip op (SDL.V2 x y) g
+    list = map (\(s, i) -> (s, 0, i * 200, 0, 1)) (zip inputStrings [0..]) ++
+           map (\(s, i) -> (s, 500, i * 100, 1, 0)) (zip outputStrings [0..])
 
 getPerceptronRect :: Perceptron -> Rect2f
 getPerceptronRect p =
@@ -125,11 +133,14 @@ addPerceptron e p =
 nodes :: EditorData -> [Perceptron]
 nodes EditorData{..} = map snd (G.labNodes graph)
 
-addNodeAt :: EditorGraph -> Vector2f -> EditorGraph
-addNodeAt g p = G.insNode (ix, perc) g
+addNodeAt :: Vector2f -> EditorGraph -> EditorGraph
+addNodeAt = addNodeAt' "" 1 1
+
+addNodeAt' :: String -> Int -> Int -> Vector2f -> EditorGraph -> EditorGraph
+addNodeAt' l i o p g = G.insNode (ix, perc) g
     where
     ix = if G.isEmpty g then 0 else snd (G.nodeRange g) + 1
-    perc = Perceptron 1 1 0 p
+    perc = Perceptron l i o 0 p
 
 getUnselectedNodes :: EditorData -> [Perceptron]
 getUnselectedNodes EditorData{..} =
@@ -233,12 +244,12 @@ isNodeSelected :: EditorData -> Int -> Bool
 isNodeSelected ed n = n `elem` (fmap fst $ selectedNodes ed)
 
 -- TODO check if this connection is not already in the graph
-connect :: EditorGraph -> (PinInfo, PinInfo) -> EditorGraph
-connect graph ((n1, (pt1, _, _)), (n2, (pt2, _, _))) =
+connect :: (PinInfo, PinInfo) -> EditorGraph -> EditorGraph
+connect ((n1, (pt1, _, _)), (n2, (pt2, _, _))) graph =
     if pt1 /= pt2
         then if pt1 == OutputPin
-            then G.insEdge (n1, n2, Connection 0 0 0) graph
-            else G.insEdge (n2, n1, Connection 0 0 0) graph
+            then G.insEdge (n1, n2, Connection 0 0 1) graph
+            else G.insEdge (n2, n1, Connection 0 0 1) graph
         else graph
 
 getNodeKnobAt :: Vector2f -> EditorGraph -> Maybe (NodeIndex, Float)
@@ -255,9 +266,9 @@ getConnectionKnobAt p g =
         nodes = G.labNodes g
         midPoint (n1, n2, c) = snd $
             mkCurveWithMidpoint
-                (getPinAbsolutePosition (snd . (nodes !!) $ n1)
+                (getPinAbsolutePosition (fromJust . (`lookup` nodes) $ n1)
                                         (srcPinNumber c) OutputPin)
-                (getPinAbsolutePosition (snd . (nodes !!) $ n2)
+                (getPinAbsolutePosition (fromJust . (`lookup` nodes) $ n2)
                                         (dstPinNumber c) InputPin)
         mkRect p = rectAroundPosition p (SDL.V2 knobWidth knobHeight)
     in  fmap (\(n1, n2, c) -> (n1, n2, gain c)) . listToMaybe

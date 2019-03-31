@@ -138,13 +138,13 @@ editorNetwork (GameData sd cd md) events mousePosB cameraDataB = mdo
     selectedPinB <-
           stepper Nothing
         $ unionWith const
-                    ( fmap (\(ed, mp) -> (getPinAt mp (graph ed)))
-                    $ ((,) <$> editorDataB <*> mousePosB) <@ leftPress)
+                    ( fmap (uncurry getPinAt)
+                    $ ((,) <$> mousePosB <*> graphB) <@ leftPress)
                     ( Nothing <$ leftRelease )
     pinUnderMouse <- stepper False
-                             ( fmap (\(ed, mp) ->
-                                        isJust $ (getPinAt mp (graph ed)))
-                             $ ((,) <$> editorDataB <*> mousePosB) <@ events)
+                             ( fmap (\(g, mp) ->
+                                        isJust $ (getPinAt mp g))
+                             $ ((,) <$> graphB <*> mousePosB) <@ events)
     let quitE = filterE (== KeyboardEvent SDL.KeycodeEscape SDL.Pressed) events
         newGameData =
             unionWith const
@@ -172,14 +172,14 @@ editorNetwork (GameData sd cd md) events mousePosB cameraDataB = mdo
                           (((,) <$> editorDataB <*> dragB)
                           <@ (whenE (fmap (== Just Move) currentToolB) events))
         connectE = fmap (\(ed, mp) ->
-                        connect (graph ed)
-                                ( (fromJust . selectedPin $ ed)
-                                , (fromJust . getPinAt mp . graph $ ed)))
+                        connect ( (fromJust . selectedPin $ ed)
+                                , (fromJust . getPinAt mp . graph $ ed))
+                                (graph ed))
                  $ ((,) <$> editorDataB <*> mousePosB)
                    <@ (whenE (fmap (/= Nothing) selectedPinB)
                              (whenE pinUnderMouse leftRelease))
-        createNodeE = fmap (\(ed, mpos) -> addNodeAt (graph ed) mpos)
-                           ((,) <$> editorDataB <*> mousePosB) <@ emptyDClickE
+        createNodeE = fmap (uncurry addNodeAt)
+                           ((,) <$> mousePosB <*> graphB) <@ emptyDClickE
         deleteNodesE =
             fmap (\(g, sn) -> deleteSelectedNodes (fmap fst sn) g)
                  (((,) <$> graphB <*> selectedNodesB) <@ pressedDelE)
@@ -189,8 +189,8 @@ editorNetwork (GameData sd cd md) events mousePosB cameraDataB = mdo
                        (editorDataB <@ leftRelease)
                 -- if the node under the mouse is not part os the selection,
                 -- make this node the sole new selection
-                , fmap (\(ed, mp) -> const [fromJust $ getNodeAt mp (graph ed)])
-                       (((,) <$> editorDataB <*> mousePosB) <@
+                , fmap (\(g, mp) -> const [fromJust $ getNodeAt mp g])
+                       (((,) <$> graphB <*> mousePosB) <@
                             (whenE (fmap ((== Just False))
                                          nodeUnderMouse) leftPress))
                 -- If the player has clicked on an empty part, unselect
@@ -232,10 +232,10 @@ editorNetwork (GameData sd cd md) events mousePosB cameraDataB = mdo
                    , (const (Just Tune))    <$ rightPressOnConnectionKnob]
         emptyDClickE :: Event Vector2f
         emptyDClickE = fmap snd
-                     . filterE (\(ed, mp) ->
-                                       (getNodeAt mp (graph ed) == Nothing)
-                                    && (getPinAt  mp (graph ed) == Nothing))
-                     $ ((,) <$> editorDataB <*> mousePosB) <@ doubleClickE
+                     . filterE (\(g, mp) ->
+                                       (getNodeAt mp g == Nothing)
+                                    && (getPinAt  mp g == Nothing))
+                     $ ((,) <$> graphB <*> mousePosB) <@ doubleClickE
         doubleClickE :: Event InputEvent
         doubleClickE =
             filterE (\case MouseClickEvent 2 SDL.ButtonLeft SDL.Pressed -> True
@@ -278,25 +278,28 @@ editorNetwork (GameData sd cd md) events mousePosB cameraDataB = mdo
         leftPressOnNode :: Event Vector2f
         leftPressOnNode =
             fmap snd
-            . filterE (\(ed, mp) -> (isJust $ getNodeAt mp (graph ed)))
-            $ ((,) <$> editorDataB <*> mousePosB) <@ leftPress
+            . filterE (\(g, mp) -> (isJust $ getNodeAt mp g))
+            $ ((,) <$> graphB <*> mousePosB) <@ leftPress
         leftPressOnPin :: Event (Int, (PinType, Int, Vector2f))
         leftPressOnPin =
             filterJust
-            . fmap (\(ed, mp) -> (getPinAt mp (graph ed)))
-            $ ((,) <$> editorDataB <*> mousePosB) <@ leftPress
+            . fmap (\(g, mp) -> (getPinAt mp g))
+            $ ((,) <$> graphB <*> mousePosB) <@ leftPress
         emptyLeftPress :: Event Vector2f
         emptyLeftPress =
             fmap snd
-            . filterE (\(ed, mp) -> (getNodeAt mp (graph ed) == Nothing)
-                                 && (getPinAt  mp (graph ed) == Nothing))
-            $ ((,) <$> editorDataB <*> mousePosB) <@ leftPress
+            . filterE (\(g, mp) -> (getNodeAt mp g == Nothing)
+                                 && (getPinAt  mp g == Nothing))
+            $ ((,) <$> graphB <*> mousePosB) <@ leftPress
         pressedDelE :: Event InputEvent
         pressedDelE =
             filterE (== KeyboardEvent SDL.KeycodeDelete SDL.Pressed) events
     return newGameData
 
--- titleNetwork = undefined
--- simulationNetwork = undefined
--- briefingNetwork = undefined
+simulationNetwork :: GameData -> Event InputEvent -> Behavior Vector2f
+                  -> Behavior CameraData
+                  -> MomentIO (Event GameData)
+simulationNetwork (GameData sd cd md) events mousePosB cameraDataB = undefined
 
+-- titleNetwork = undefined
+-- briefingNetwork = undefined

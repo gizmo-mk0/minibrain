@@ -21,7 +21,6 @@ import Control.Monad.State.Strict (StateT(..), MonadState(..), gets, modify)
 
 import qualified Data.Map
 import qualified SDL
-import qualified Graphics.Gloss.Rendering as G
 import qualified Linear as L
 import Control.Lens ((^.), (.~), (&), set)
 import Data.Generics.Product.Fields (field)
@@ -43,7 +42,8 @@ import Utils
 data Config = Config
             { getWindow     :: SDL.Window
             , getWindowSize :: Vector2i
-            , getGlossState :: G.State}
+            , getRenderer   :: SDL.Renderer
+            , getTexture    :: SDL.Texture }
 
 data GameData = GameData
               { sceneData     :: SceneData
@@ -70,8 +70,8 @@ toWorldCoords (CameraData (SDL.V2 cx cy) r z) (SDL.V2 w h) (SDL.V2 x y) =
                      . (/ (L.V3 z z z))
                      . (+ (L.V3 (-cx) (-cy) 0))
                      -- convert from SDL screen coordinates:
-                     . (+ (L.V3 (-(fromIntegral w / 2)) (fromIntegral h / 2) 0))
-                     . (* (L.V3 1 (-1) 1))
+                    --  . (+ (L.V3 (-(fromIntegral w / 2)) (fromIntegral h / 2) 0))
+                    --  . (* (L.V3 1 (-1) 1))
                      $ (L.V3 x y 0)
     in  SDL.V2 lx ly
 

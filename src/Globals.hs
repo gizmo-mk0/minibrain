@@ -1,18 +1,19 @@
 module Globals where
 
-import qualified Graphics.Gloss.Rendering as G
 import qualified SDL
 import GHC.Word (Word8(..))
 import Foreign.C.Types (CInt)
+import Codec.Picture
 
 import Types
 
 -- Colors
-mkColor :: Int -> Int -> Int -> Int -> G.Color
-mkColor r g b a = G.makeColorI r g b a
+mkColor :: Int -> Int -> Int -> Int -> PixelRGBA8
+mkColor r g b a = PixelRGBA8 (fromIntegral r) (fromIntegral g)
+                             (fromIntegral b) (fromIntegral a)
 
 editorBackgroundColor, backgroundLines, background, perceptronBodyColor,
-    selectionLineColor, selectionFillColor, pinColor :: G.Color
+    selectionLineColor, selectionFillColor, pinColor :: PixelRGBA8
 editorBackgroundColor = mkColor  47  68  81 255
 backgroundLines       = mkColor  72  90 102 255
 background            = mkColor  47  68  81 255

@@ -4,8 +4,6 @@
 module Main where
 
 import qualified SDL
--- import qualified SDL.Video as SDL
-import qualified Graphics.Gloss.Rendering as G
 
 import Control.Monad (unless, when)
 import Control.Monad.Reader (runReaderT, ask, liftIO)
@@ -37,12 +35,15 @@ main = do
     SDL.initialize [SDL.InitVideo] -- TODO catch SDLException
     window <- SDL.createWindow "Minibrain" (SDL.defaultWindow
                 { SDL.windowInitialSize =
-                    fmap fromIntegral $ SDL.V2 (floor width) (floor height)
+                    (fromIntegral . floor) <$> SDL.V2 width height
                 , SDL.windowGraphicsContext =
                     SDL.OpenGLContext SDL.defaultOpenGL })
     context <- SDL.glCreateContext window
-    glossState <- G.initState
-    let cfg = Config window (SDL.V2 c_width c_height) glossState
+    renderer <- SDL.createRenderer window (-1) SDL.defaultRenderer
+    texture <- SDL.createTexture renderer SDL.ABGR8888
+                                 SDL.TextureAccessStreaming
+                                 (floor <$> SDL.V2 width height)
+    let cfg = Config window (SDL.V2 c_width c_height) renderer texture
 
     (inputHandler, inputFire) <- newAddHandler -- Handler InputEvent
     (frameHandler, frameFire) <- newAddHandler -- Handler ()
@@ -70,7 +71,7 @@ mainLoop :: Config -> (Handler InputEvent, Handler ()) -> IORef GameData
          -> IO ()
 mainLoop cfg fires gdref = do
     t <- getSystemTime
-    mainLoop' 60 t [] cfg fires gdref
+    mainLoop' 30 t [] cfg fires gdref
     where
     mainLoop' fps t es cfg (inputFire, frameFire) gdref = do
         events <- fmap (es ++) handleEvents

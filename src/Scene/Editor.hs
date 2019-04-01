@@ -66,25 +66,15 @@ testEditorData =
     EditorData g Nothing [] Nothing
     where
     g = mkGraph ["node1", "node 2", "node 3"] ["node4"]
-        -- ( G.insEdge (0, 1, Connection 0 0 1)
-        -- $ G.insEdge (0, 3, Connection 0 0 1)
-        -- $ G.insEdge (2, 3, Connection 0 0 1)
-        -- $ G.insEdge (3, 4, Connection 0 0 1)
-        -- $ addNodeAt (SDL.V2 400 0)
-        -- $ addNodeAt (SDL.V2 200 0)
-        -- $ addNodeAt (SDL.V2 0 0)
-        -- $ addNodeAt (SDL.V2 200 200)
-        -- $ addNodeAt (SDL.V2 0 200) G.empty )
-        -- Nothing
-        -- []
-        -- Nothing
 
 mkGraph :: [String] -> [String] -> EditorGraph
 mkGraph inputStrings outputStrings = foldl f G.empty list
     where
     f g (name, x, y, ip, op) = addNodeAt' name ip op (SDL.V2 x y) g
-    list = map (\(s, i) -> (s, 0, i * 200, 0, 1)) (zip inputStrings [0..]) ++
-           map (\(s, i) -> (s, 500, i * 100, 1, 0)) (zip outputStrings [0..])
+    list = map (\(s, i) -> (s, 200, (i + 1) * 200, 0, 1))
+               (zip inputStrings [0..]) ++
+           map (\(s, i) -> (s, 800, (i + 1) * 200, 1, 0))
+               (zip outputStrings [0..])
 
 getPerceptronRect :: Perceptron -> Rect2f
 getPerceptronRect p =

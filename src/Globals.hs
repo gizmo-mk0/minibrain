@@ -14,7 +14,7 @@ mkColor r g b a = PixelRGBA8 (fromIntegral r) (fromIntegral g)
 
 editorBackgroundColor, backgroundLines, background, perceptronBodyColor,
     selectionLineColor, selectionFillColor, pinColor :: PixelRGBA8
-editorBackgroundColor = mkColor  47  68  81 255
+editorBackgroundColor = mkColor  23  34  40 255
 backgroundLines       = mkColor  72  90 102 255
 background            = mkColor  47  68  81 255
 perceptronBodyColor   = mkColor  79 127 141 255

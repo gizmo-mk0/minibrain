@@ -164,11 +164,10 @@ renderEditor md (SDL.V2 w h) sd = renderDrawing w h editorBackgroundColor $
         selectedPerceptrons = (getSelectedNodes . editorData) sd
         connections         = (edges . editorData) sd
         selection           = (selectionRect . editorData) sd
-        -- selectionShape =
-        --     case selection of
-        --         Nothing -> G.Blank
-        --         Just selRect -> renderSelection selRect
         activePin = (selectedPin . editorData) sd
+    case selection of
+        Nothing      -> return ()
+        Just selRect -> renderSelection selRect
     -- renderBackground
     mapM_ (renderPerceptron True)  selectedPerceptrons
     mapM_ (renderPerceptron False) perceptrons
@@ -178,6 +177,7 @@ renderEditor md (SDL.V2 w h) sd = renderDrawing w h editorBackgroundColor $
 --                        ++ map renderConnection connections
 --                        ++ map (renderPerceptron False) perceptrons
 --                        ++ [selectionShape, connectionToolLine md activePin]
+    mapM_ renderConnection connections
     where
     renderPerceptron :: Bool -> Perceptron -> Drawing PixelRGBA8 ()
     renderPerceptron s p = do
@@ -195,9 +195,10 @@ renderEditor md (SDL.V2 w h) sd = renderDrawing w h editorBackgroundColor $
                 mapM_ (renderPin p) 
                       (zip [0..inputPinCount p - 1] (repeat InputPin) ++
                        zip [0..outputPinCount p - 1] (repeat OutputPin))
-            -- knob = renderKnob (baseLevel p)
         withTransformation (translate (V2 (x - w / 2) (y - h / 2))) $ body
-        withTransformation (translate (V2 x y)) $ pins
+        withTransformation (translate (V2 x y)) $ do
+            renderKnob (baseLevel p)
+            pins
     renderPin :: Perceptron -> (Int, PinType) -> Drawing PixelRGBA8 ()
     renderPin perc (n, t) = do
         let (SDL.V2 px py) = getPinRelativePosition perc n t
@@ -205,43 +206,53 @@ renderEditor md (SDL.V2 w h) sd = renderDrawing w h editorBackgroundColor $
                                           (py - pinHeight / 2))) $
             withTexture (uniformTexture pinColor) $
                 fill $ rectangle (V2 0 0) pinWidth pinHeight
---     renderKnob :: Float -> G.Picture
---     renderKnob v =
---         G.Pictures [ G.Color knobBaseColor $
---                         fillRoundRectangle (SDL.V2 knobWidth knobHeight)
---                                            knobRoundness
---                    , G.Translate 0 (-knobWidth / 6) $ G.Color knobColor $
---                         G.ThickArc 90 (90 - v * 90)
---                                    (knobWidth / 4)
---                                    (knobWidth / 6)
---                    , G.Translate 0 (-knobWidth / 6) $ G.Color knobColor $
---                         thickLine (SDL.V2 0 (knobWidth / 4 - knobWidth / 12))
---                                   (SDL.V2 0 (knobWidth / 4 + knobWidth / 12)) 2]
---     renderConnection :: (Perceptron, Perceptron, Connection) -> G.Picture
---     renderConnection (p1, p2, c) =
---         let pos1@(SDL.V2 x1 y1) =
---                 getPinAbsolutePosition p1 (srcPinNumber c) OutputPin
---             pos2@(SDL.V2 x2 y2) =
---                 getPinAbsolutePosition p2 (dstPinNumber c) InputPin
---             (points, (SDL.V2 mx my)) = mkCurveWithMidpoint pos1 pos2
---         in G.Color pinColor $
---                 G.Pictures $
---                     [ thickCurve connectionWidth points
---                     , G.Translate mx my $ renderKnob (gain c)]
+    renderKnob :: Float -> Drawing PixelRGBA8 ()
+    renderKnob v = do
+        let arcDir    = if v < 0 then Forward else Backward
+            arcDegree = pi / 2 - (v * pi / 2)
+            arcStart  = min (pi / 2) arcDegree
+            arcEnd    = max (pi / 2) arcDegree
+        withTransformation
+            (translate (V2 (-knobWidth / 2) (-knobHeight / 2))) $
+            withTexture (uniformTexture knobBaseColor) $
+                fill $ roundedRectangle (V2 0 0) knobWidth knobHeight
+                                        knobRoundness knobRoundness
+        withTransformation (translate (V2 0 (knobWidth / 6))) $
+            withTexture (uniformTexture knobColor) $
+                stroke (knobWidth / 6) JoinRound
+                        (CapStraight 0, CapStraight 0)
+                    $ Path (V2 0 (-(knobWidth / 4))) False $
+                        arcInDirection (V2 0 0) (knobWidth / 4) arcDir 0.1
+                                    (pi + arcStart) (pi + arcEnd)
+        withTransformation (translate (V2 0 (-knobWidth / 12))) $
+            withTexture (uniformTexture knobColor) $
+                stroke (knobWidth / 6) JoinRound (CapStraight 0, CapStraight 0)
+                    $ line (V2 (- 1) 0) (V2 1 0)
+    renderConnection :: (Perceptron, Perceptron, Connection)
+                     -> Drawing PixelRGBA8 ()
+    renderConnection (p1, p2, c) =
+        let pos1@(SDL.V2 x1 y1) =
+                getPinAbsolutePosition p1 (srcPinNumber c) OutputPin
+            pos2@(SDL.V2 x2 y2) =
+                getPinAbsolutePosition p2 (dstPinNumber c) InputPin
+            (points, (SDL.V2 mx my)) = mkCurveWithMidpoint pos1 pos2
+        in withTexture (uniformTexture pinColor) $ do
+                stroke connectionWidth JoinRound
+                       (CapStraight 0, CapStraight 0) $
+                    polyline (map (\(SDL.V2 x y) -> V2 x y) points)
+                withTransformation (translate (V2 mx my)) $
+                    renderKnob (gain c)
         
 --     -- TODO
 --     -- renderBackground :: Minibrain ()
 --     -- renderBackground = undefined
---     renderSelection :: Rect2f -> G.Picture
---     renderSelection (Rect2f (SDL.V2 left top) (SDL.V2 w h)) =
---         let points = [(0, 0), (w, 0), (w, h), (0, h)]
---             coords = zip points (drop 1 (cycle points))
---         in  G.Translate left top $ G.Pictures
---                 [ G.Color selectionLineColor $ G.Pictures $
---                         map (\((p1x, p1y), (p2x, p2y)) ->
---                                 thickLine (SDL.V2 p1x p1y)
---                                           (SDL.V2 p2x p2y) 1) coords
---                 , G.Color selectionFillColor $ G.Polygon points ]
+    renderSelection :: Rect2f -> Drawing PixelRGBA8 ()
+    renderSelection (Rect2f (SDL.V2 left top) (SDL.V2 w h)) = do
+        withTexture (uniformTexture selectionLineColor) $
+            stroke 1 JoinRound (CapStraight 0, CapStraight 0) $
+                rectangle (V2 left top) w h
+        withTexture (uniformTexture selectionFillColor) $
+            fill $ rectangle (V2 left top) w h
 --     connectionToolLine :: Vector2f -> Maybe (Int, (PinType, Int, Vector2f))
 --                        -> G.Picture
 --     connectionToolLine md (Just (_, (_, _, pp))) =

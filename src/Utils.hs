@@ -71,7 +71,7 @@ mkCurveWithMidpoint :: Vector2f -> Vector2f -> ([Vector2f], Vector2f)
 mkCurveWithMidpoint pos1@(SDL.V2 x1 y1) pos2@(SDL.V2 x2 y2) =
     let xMid    = (x1 + x2) / 2
         xDelta  = abs (x1 - x2)
-        yOffset = if x2 < x1 then (-xDelta / 2) else 0
+        yOffset = if x2 < x1 then (xDelta / 2) else 0
         pos3    = SDL.V2 (max xMid (x1 + xDelta)) (y1 + yOffset)
         pos4    = SDL.V2 (min xMid (x2 - xDelta)) (y2 + yOffset)
         points  = map (bezier [pos1, pos3, pos4, pos2])

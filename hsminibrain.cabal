@@ -21,7 +21,7 @@ executable hsminibrain
                        sdl2, sdl2-mixer, vector, mtl, safe-exceptions,
                        containers, fgl, linear, lens, generic-lens,
                        reactive-banana, time, astar, unordered-containers,
-                       Rasterific, JuicyPixels
+                       Rasterific, JuicyPixels, nanovg, gl
   hs-source-dirs:      src
   other-modules:       Types, Globals, Input, Scene, Scene.Editor, Render,
                        GameData, Utils, Scene.Simulation
@@ -30,3 +30,4 @@ executable hsminibrain
   default-language:    Haskell2010
   -- for windows console outputs
   ghc-options:         -optl-mconsole
+  c-sources:           cbits/glew.c

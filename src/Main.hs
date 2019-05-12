@@ -4,6 +4,8 @@
 module Main where
 
 import qualified SDL
+import qualified NanoVG   as NVG
+import qualified Data.Set as S
 
 import Control.Monad (unless, when)
 import Control.Monad.Reader (runReaderT, ask, liftIO)
@@ -24,6 +26,10 @@ import Input
 import Globals
 import Render
 
+import Foreign.C.Types
+foreign import ccall unsafe "initGlew"
+  glewInit :: IO CInt
+
 width = 1600 :: Float
 c_width = fromIntegral $ floor width
 height = 1000 :: Float
@@ -32,34 +38,47 @@ c_height = fromIntegral $ floor height
 main :: IO ()
 main = do
     -- Init SDL
+    putStrLn "Initializing SDL"
     SDL.initialize [SDL.InitVideo] -- TODO catch SDLException
+    let openGLContext = SDL.defaultOpenGL
+            { SDL.glProfile = SDL.Core SDL.Normal 3 2 }
     window <- SDL.createWindow "Minibrain" (SDL.defaultWindow
                 { SDL.windowInitialSize =
                     (fromIntegral . floor) <$> SDL.V2 width height
                 , SDL.windowGraphicsContext =
-                    SDL.OpenGLContext SDL.defaultOpenGL })
-    context <- SDL.glCreateContext window
-    renderer <- SDL.createRenderer window (-1) SDL.defaultRenderer
-    texture <- SDL.createTexture renderer SDL.ABGR8888
-                                 SDL.TextureAccessStreaming
-                                 (floor <$> SDL.V2 width height)
-    let cfg = Config window (SDL.V2 c_width c_height) renderer texture
+                    SDL.OpenGLContext openGLContext })
+    putStrLn "Creating OpenGL context"
+    glContext <- SDL.glCreateContext window
+    _ <- glewInit
+    -- SDL.glMakeCurrent window glContext
+    putStrLn "Creating NanoVG context"
+    nvgContext <- NVG.createGL3 (S.fromList [NVG.Antialias, NVG.StencilStrokes])
+    -- renderer <- SDL.createRenderer window (-1) SDL.defaultRenderer
+    -- texture <- SDL.createTexture renderer SDL.ABGR8888
+    --                              SDL.TextureAccessStreaming
+    --                              (floor <$> SDL.V2 width height)
+    -- let cfg = Config window (SDL.V2 c_width c_height) renderer texture
+    let cfg = Config window (SDL.V2 c_width c_height) glContext nvgContext
 
+    putStrLn "Setting up input handler network"
     (inputHandler, inputFire) <- newAddHandler -- Handler InputEvent
     (frameHandler, frameFire) <- newAddHandler -- Handler ()
     gdref <- newIORef initData
     eNetwork <- compile (sceneNetwork cfg initData gdref
                                       (inputHandler, frameHandler))
     actuate eNetwork
+    putStrLn "Starting main loop"
     mainLoop cfg (inputFire, frameFire) gdref
     -- Free resources
     -- Uninitialize SDL
+    putStrLn "Cleaning up"
     SDL.destroyWindow window
     SDL.quit
+    putStrLn "Finished"
 
-quitIfNeeded :: GameData -> IO ()
-quitIfNeeded gd =
-    if (currentScene . sceneData) gd == Quit then exitSuccess else return ()
+loopIfNeeded :: GameData -> IO () -> IO ()
+loopIfNeeded gd action =
+    if (currentScene . sceneData) gd == Quit then return () else action
 
 initData :: GameData
 initData = GameData (SceneData Editor TitleData BriefingData defaultEditorData
@@ -92,8 +111,8 @@ mainLoop cfg fires gdref = do
                         return t'
                     else return t
         
-        quitIfNeeded gd
-        mainLoop' fps newT (drop 1 events) cfg (inputFire, frameFire) gdref
+        loopIfNeeded gd $
+            mainLoop' fps newT (drop 1 events) cfg (inputFire, frameFire) gdref
 
 handleEvents :: IO [InputEvent]
 handleEvents = fmap (catMaybes . map inputEvent) SDL.pollEvents

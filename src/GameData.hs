@@ -21,6 +21,7 @@ import Control.Monad.State.Strict (StateT(..), MonadState(..), gets, modify)
 
 import qualified Data.Map
 import qualified SDL
+import qualified NanoVG as NVG
 import qualified Linear as L
 import Control.Lens ((^.), (.~), (&), set)
 import Data.Generics.Product.Fields (field)
@@ -42,8 +43,10 @@ import Utils
 data Config = Config
             { getWindow     :: SDL.Window
             , getWindowSize :: Vector2i
-            , getRenderer   :: SDL.Renderer
-            , getTexture    :: SDL.Texture }
+            -- , getRenderer   :: SDL.Renderer
+            -- , getTexture    :: SDL.Texture }
+            , getGlContext  :: SDL.GLContext
+            , getNvgContext :: NVG.Context }
 
 data GameData = GameData
               { sceneData     :: SceneData

@@ -205,7 +205,7 @@ editorNetwork (GameData sd cd md) events mousePosB cameraDataB = mdo
         tuneNodesE =
             fmap (\(g, Just (n, v), SDL.V2 mx my, SDL.V2 lx ly) ->
                     tunePerceptron n (clamp (-1) 1
-                                        (v + ((my - ly) / tuneMouseDistance)))
+                                        (v - ((my - ly) / tuneMouseDistance)))
                                    g)
             $ (((,,,) <$> graphB <*> nodeKnobUnderMouse <*> mousePosB
                       <*> lastRClickB)
@@ -215,7 +215,7 @@ editorNetwork (GameData sd cd md) events mousePosB cameraDataB = mdo
         tuneConnectionsE =
             fmap (\(g, Just (n1, n2, v), SDL.V2 mx my, SDL.V2 lx ly) ->
                 tuneConnection n1 n2 (clamp (-1) 1
-                                        (v + ((my - ly) / tuneMouseDistance)))
+                                        (v - ((my - ly) / tuneMouseDistance)))
                                g)
             $ (((,,,) <$> graphB <*> connectionKnobUnderMouse <*> mousePosB
                       <*> lastRClickB)

@@ -208,8 +208,8 @@ renderEditor md (SDL.V2 w h) sd = renderDrawing w h editorBackgroundColor $
                 fill $ rectangle (V2 0 0) pinWidth pinHeight
     renderKnob :: Float -> Drawing PixelRGBA8 ()
     renderKnob v = do
-        let arcDir    = if v < 0 then Forward else Backward
-            arcDegree = pi / 2 - (v * pi / 2)
+        let arcDir    = if v > 0 then Forward else Backward
+            arcDegree = pi / 2 + (v * pi / 2)
             arcStart  = min (pi / 2) arcDegree
             arcEnd    = max (pi / 2) arcDegree
         withTransformation

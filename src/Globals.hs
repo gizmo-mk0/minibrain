@@ -3,27 +3,24 @@ module Globals where
 import qualified SDL
 import GHC.Word (Word8(..))
 import Foreign.C.Types (CInt)
-import Codec.Picture
+import NanoVG
 
 import Types
 
 -- Colors
-mkColor :: Int -> Int -> Int -> Int -> PixelRGBA8
-mkColor r g b a = PixelRGBA8 (fromIntegral r) (fromIntegral g)
-                             (fromIntegral b) (fromIntegral a)
 
 editorBackgroundColor, backgroundLines, background, perceptronBodyColor,
-    selectionLineColor, selectionFillColor, pinColor :: PixelRGBA8
-editorBackgroundColor = mkColor  23  34  40 255
-backgroundLines       = mkColor  72  90 102 255
-background            = mkColor  47  68  81 255
-perceptronBodyColor   = mkColor  79 127 141 255
-perceptronSelectedBodyColor = mkColor 117 187 206 255
-selectionLineColor    = mkColor 113 180 198 255
-selectionFillColor    = mkColor 113 180 198 63
-pinColor              = mkColor 206 201 193 255
-knobBaseColor         = mkColor  46  73  81 255
-knobColor             = pinColor -- mkColor 226 221 213 255
+    selectionLineColor, selectionFillColor, pinColor :: Color
+editorBackgroundColor = rgba  23  34  40 255
+backgroundLines       = rgba  72  90 102 255
+background            = rgba  47  68  81 255
+perceptronBodyColor   = rgba  79 127 141 255
+perceptronSelectedBodyColor = rgba 117 187 206 255
+selectionLineColor    = rgba 113 180 198 255
+selectionFillColor    = rgba 113 180 198 63
+pinColor              = rgba 206 201 193 255
+knobBaseColor         = rgba  46  73  81 255
+knobColor             = pinColor -- rgba 226 221 213 255
 
 -- Sizes
 perceptronWidth, perceptronModuleHeight, perceptronBodyRoundness, pinWidth,

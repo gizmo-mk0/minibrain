@@ -90,7 +90,7 @@ mainLoop :: Config -> (Handler InputEvent, Handler ()) -> IORef GameData
          -> IO ()
 mainLoop cfg fires gdref = do
     t <- getSystemTime
-    mainLoop' 30 t [] cfg fires gdref
+    mainLoop' 60 t [] cfg fires gdref
     where
     mainLoop' fps t es cfg (inputFire, frameFire) gdref = do
         events <- fmap (es ++) handleEvents

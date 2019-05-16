@@ -60,12 +60,12 @@ snapTo n v = fmap (snapf n) v
     snapf n x = fromIntegral
               $ ((fromIntegral $ floor x) `div` n) * (fromIntegral n)
 
-bezier :: [Vector2f] -> Float -> Vector2f
-bezier vs t | length vs == 4 = fmap (* ((1 - t) ** 3))           (vs !! 0)
+cubicBezier :: [Vector2f] -> Float -> Vector2f
+cubicBezier vs t | length vs == 4 = fmap (* ((1 - t) ** 3))           (vs !! 0)
                              + fmap (* (3 * ((1 - t) ** 2) * t)) (vs !! 1)
                              + fmap (* (3 * (1 - t) * (t ** 2))) (vs !! 2)
                              + fmap (* (t ** 3))                 (vs !! 3)
-            | otherwise = error "bezier called with fewer or more than 4 points"
+            | otherwise = error "cubicBezier called with fewer or more than 4 points"
 
 mkCurveWithMidpoint :: Vector2f -> Vector2f -> ([Vector2f], Vector2f)
 mkCurveWithMidpoint pos1@(SDL.V2 x1 y1) pos2@(SDL.V2 x2 y2) =
@@ -74,11 +74,33 @@ mkCurveWithMidpoint pos1@(SDL.V2 x1 y1) pos2@(SDL.V2 x2 y2) =
         yOffset = if x2 < x1 then (xDelta / 2) else 0
         pos3    = SDL.V2 (max xMid (x1 + xDelta)) (y1 + yOffset)
         pos4    = SDL.V2 (min xMid (x2 - xDelta)) (y2 + yOffset)
-        points  = map (bezier [pos1, pos3, pos4, pos2])
+        points  = map (cubicBezier [pos1, pos3, pos4, pos2])
                     (map (/ connectorSegmentCount)
                         [0..connectorSegmentCount])
         midpoint = points !! ((length points) `div` 2)
     in  (points, midpoint)
+
+bezierMidPoint :: Vector2f -> Vector2f -> Vector2f
+bezierMidPoint pos1@(SDL.V2 x1 y1) pos2@(SDL.V2 x2 y2) =
+    let xMid    = (x1 + x2) / 2
+        xDelta  = abs (x1 - x2)
+        yOffset = if x2 < x1 then (xDelta / 2) else 0
+        pos3    = SDL.V2 (max xMid (x1 + xDelta)) (y1 + yOffset)
+        pos4    = SDL.V2 (min xMid (x2 - xDelta)) (y2 + yOffset)
+    in  cubicBezier [pos1, pos3, pos4, pos2] 0.5
+
+connectionControlpoints :: Vector2f -> Vector2f
+                        -> (Vector2f, Vector2f, Vector2f, Vector2f)
+connectionControlpoints pStart pEnd =
+    let pos1@(SDL.V2 x1 y1) = pStart
+        pos2@(SDL.V2 x2 y2) = pEnd
+        xMid    = (x1 + x2) / 2
+        xDelta  = abs (x1 - x2)
+        yOffset = if x2 < x1 then (xDelta / 2) else 0
+        pos3    = SDL.V2 (max xMid (x1 + xDelta)) (y1 + yOffset)
+        pos4    = SDL.V2 (min xMid (x2 - xDelta)) (y2 + yOffset)
+        midPoint = cubicBezier [pos1, pos3, pos4, pos2] 0.5
+    in (pos1, pos3, pos4, pos2)
 
 clamp :: Ord a => a -> a -> a -> a
 clamp x y n =

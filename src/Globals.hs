@@ -10,7 +10,8 @@ import Types
 -- Colors
 
 editorBackgroundColor, backgroundLines, background, perceptronBodyColor,
-    selectionLineColor, selectionFillColor, pinColor :: Color
+    selectionLineColor, selectionFillColor, pinColor,
+    perceptronLabelColor :: Color
 editorBackgroundColor = rgba  23  34  40 255
 backgroundLines       = rgba  72  90 102 255
 background            = rgba  47  68  81 255
@@ -21,6 +22,7 @@ selectionFillColor    = rgba 113 180 198 63
 pinColor              = rgba 206 201 193 255
 knobBaseColor         = rgba  46  73  81 255
 knobColor             = pinColor -- rgba 226 221 213 255
+perceptronLabelColor  = pinColor
 
 -- Sizes
 perceptronWidth, perceptronModuleHeight, perceptronBodyRoundness, pinWidth,
@@ -43,3 +45,5 @@ connectorSegmentCount :: Float
 connectorSegmentCount = 20
 tuneMouseDistance :: Float
 tuneMouseDistance = 100
+perceptronLabelSize :: Float
+perceptronLabelSize = 18

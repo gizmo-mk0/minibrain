@@ -5,6 +5,7 @@ module Main where
 
 import qualified SDL
 import qualified NanoVG   as NVG
+import qualified Data.Text as T
 import qualified Data.Set as S
 
 import Control.Monad (unless, when)
@@ -53,6 +54,8 @@ main = do
     -- SDL.glMakeCurrent window glContext
     putStrLn "Creating NanoVG context"
     nvgContext <- NVG.createGL3 (S.fromList [NVG.Antialias, NVG.StencilStrokes])
+    NVG.createFont nvgContext "regular"
+                   (NVG.FileName "dat/Roboto-Regular.ttf")
     -- renderer <- SDL.createRenderer window (-1) SDL.defaultRenderer
     -- texture <- SDL.createTexture renderer SDL.ABGR8888
     --                              SDL.TextureAccessStreaming

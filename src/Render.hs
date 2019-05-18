@@ -6,17 +6,8 @@ import qualified SDL
 import qualified NanoVG             as NVG
 import qualified Graphics.GL.Core32 as GL
 
--- import Control.Monad.State.Strict (gets)
--- import Control.Monad.Reader (asks, liftIO)
--- import Control.Lens ((^.))
--- import Linear.Metric (norm)
--- import Data.Fixed (mod')
-
 import Codec.Picture( PixelRGBA8( .. ), imageData, Image )
 import Data.Bits ((.|.))
--- import Graphics.Rasterific
--- import Graphics.Rasterific.Texture
--- import Graphics.Rasterific.Transformations
 import qualified Data.Vector.Storable as V
 import Foreign.Marshal.Utils
 import Foreign.C.Types
@@ -99,9 +90,16 @@ renderEditor md (SDL.V2 w h) sd =
                       (zip [0..inputPinCount p - 1] (repeat InputPin) ++
                        zip [0..outputPinCount p - 1] (repeat OutputPin))
         in compound
-            [ translate (SDL.V2 (x - w / 2) (y - h / 2)) $ body
-            , translate (SDL.V2 x y) $ compound $
-                renderKnob (baseLevel p) : pins ]
+            -- [ translate (SDL.V2 (x - w / 2) (y - h / 2)) $ body
+            -- , translate (SDL.V2 x y) $ compound $
+            --     renderKnob (baseLevel p) : pins ]
+            [ translate (SDL.V2 x y) $ compound $
+                translate (SDL.V2 (-w/2) (-h/2)) body
+                    : renderKnob (baseLevel p)
+                    : translate (SDL.V2 0 ((- h + perceptronLabelSize) / 2))
+                        (fill perceptronLabelColor $
+                            text perceptronLabelSize (label p))
+                    : pins ]
     renderPin :: Perceptron -> (Int, PinType) -> VectorImage
     renderPin perc (n, t) =
         let (SDL.V2 px py) = getPinRelativePosition perc n t

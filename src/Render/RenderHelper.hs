@@ -1,7 +1,9 @@
 module Render.RenderHelper where
 
 import qualified SDL
-import qualified NanoVG as NVG
+import qualified NanoVG    as NVG
+import qualified Data.Text as T
+import qualified Data.Set  as S
 
 import Foreign.C.Types
 
@@ -22,6 +24,7 @@ data Shape = RoundedRectangle Vector2f Float
            | Arc       Float (Float, Float) Winding
            | Line      Vector2f Vector2f
            | Bezier    Vector2f Vector2f Vector2f Vector2f
+           | Text      Float String
 
 data RenderStyle = Fill   NVG.Color
                  | Stroke Float NVG.Color
@@ -60,6 +63,9 @@ line p1 p2 = VIShape (Line p1 p2)
 bezier :: Vector2f -> Vector2f -> Vector2f -> Vector2f -> VectorImage
 bezier p1 p2 p3 p4 = VIShape (Bezier p1 p2 p3 p4)
 
+text :: Float -> String -> VectorImage
+text size str = if null str then VIBlank else VIShape (Text size str)
+
 fill :: NVG.Color -> VectorImage -> VectorImage
 fill c = VIRenderStyle (Fill c)
 
@@ -72,6 +78,9 @@ compound vis = VICompound vis
 blank :: VectorImage
 blank = VIBlank
 
+-- A naive code generator for NanoVG
+-- It will insert one or two extra, unnecessary calls, but for my purposes it's
+-- okay.
 renderImage :: NVG.Context -> VectorImage -> IO ()
 renderImage c vi = renderImage' c [] [] vi
     where
@@ -105,12 +114,17 @@ renderImage c vi = renderImage' c [] [] vi
         NVG.moveTo c (CFloat x1) (CFloat y1)
         NVG.bezierTo c (CFloat x2) (CFloat y2) (CFloat x3) (CFloat y3)
                                    (CFloat x4) (CFloat y4)
-        -- TODO
+    renderShape c (Text size str) = do
+        NVG.fontSize c (CFloat size)
+        NVG.fontFace c (T.pack "regular")
+        NVG.textAlign c (S.fromList [NVG.AlignCenter, NVG.AlignMiddle])
+        NVG.text c 0 0 (T.pack str)
     applyStyles :: NVG.Context -> [RenderStyle] -> IO () -> IO ()
-    applyStyles c ss a = a >> mapM_ (applyStyle c) ss
-    applyStyle c (Fill color) = NVG.fillColor c color >> NVG.fill c
-    applyStyle c (Stroke w color) =
-        NVG.strokeColor c color >> NVG.strokeWidth c (CFloat w) >> NVG.stroke c
+    applyStyles c ss a = foldr (applyStyle c) a ss
+    applyStyle c (Fill color) a = NVG.fillColor c color >> a >> NVG.fill c
+    applyStyle c (Stroke w color) a =
+        NVG.strokeColor c color >> NVG.strokeWidth c (CFloat w) >> a
+                                >> NVG.stroke c
     applyTransforms :: NVG.Context -> [Transform] -> IO () -> IO ()
     applyTransforms _ [] a = a
     applyTransforms c (t:[]) a = applyTransform c t >> a >> NVG.resetTransform c

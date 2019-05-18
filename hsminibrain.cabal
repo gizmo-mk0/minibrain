@@ -21,7 +21,7 @@ executable hsminibrain
                        sdl2, sdl2-mixer, vector, mtl, safe-exceptions,
                        containers, fgl, linear, lens, generic-lens,
                        reactive-banana, time, astar, unordered-containers,
-                       Rasterific, JuicyPixels, nanovg, gl
+                       Rasterific, JuicyPixels, nanovg, gl, text
   hs-source-dirs:      src
   other-modules:       Types, Globals, Input, Scene, Scene.Editor, Render,
                        GameData, Utils, Scene.Simulation, Render.RenderHelper

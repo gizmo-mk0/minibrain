@@ -65,7 +65,7 @@ testEditorData :: EditorData
 testEditorData =
     EditorData g Nothing [] Nothing
     where
-    g = mkGraph ["node1", "node 2", "node 3"] ["node4"]
+    g = mkGraph ["foodDirection", "foodDistance"] ["rotate", "move"]
 
 mkGraph :: [String] -> [String] -> EditorGraph
 mkGraph inputStrings outputStrings = foldl f G.empty list

@@ -86,8 +86,8 @@ getPerceptronRect p =
 
 getPerceptronGridSize :: Perceptron -> Rect2f
 getPerceptronGridSize p =
-    let h   = getPerceptronHeight p + fromIntegral editorGridSize
-        w   = perceptronWidth + fromIntegral editorGridSize
+    let h   = getPerceptronHeight p + editorGridSizeF
+        w   = perceptronWidth + editorGridSizeF
         pos = position p
         halfSize = SDL.V2 (w / 2) (h / 2)
     in  Rect2f (pos - halfSize) (halfSize * 2)
@@ -224,6 +224,9 @@ tuneConnection n1 n2 level g =
             Just (_, _, c) ->
                 G.insEdge (n1, n2, c {gain = level}) . G.delEdge (n1, n2) $ g
 
+deleteConnection :: NodeIndex -> NodeIndex -> EditorGraph -> EditorGraph
+deleteConnection n1 n2 = G.delEdge (n2, n1) . G.delEdge (n1, n2)
+
 getPinAt :: Vector2f -> EditorGraph -> Maybe (Int, (PinType, Int, Vector2f))
 getPinAt p g =
     let nodes = G.labNodes g
@@ -269,7 +272,8 @@ getConnectionKnobAt p g =
         . filter (pointInRect p . mkRect . midPoint) $ edges
 
 snapGraph :: EditorGraph -> EditorGraph
-snapGraph = G.nmap (\p -> p {position = snapTo editorGridSize (position p)})
+snapGraph = G.nmap (\p -> p {position = snapTo (round editorGridSizeF)
+                                               (position p)})
 
 graphSize :: EditorGraph -> Rect2f
 graphSize graph = Rect2f topLeft (bottomRight - topLeft)

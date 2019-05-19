@@ -90,15 +90,12 @@ renderEditor md (SDL.V2 w h) sd =
                       (zip [0..inputPinCount p - 1] (repeat InputPin) ++
                        zip [0..outputPinCount p - 1] (repeat OutputPin))
         in compound
-            -- [ translate (SDL.V2 (x - w / 2) (y - h / 2)) $ body
-            -- , translate (SDL.V2 x y) $ compound $
-            --     renderKnob (baseLevel p) : pins ]
             [ translate (SDL.V2 x y) $ compound $
                 translate (SDL.V2 (-w/2) (-h/2)) body
-                    : renderKnob (baseLevel p)
-                    : translate (SDL.V2 0 ((- h + perceptronLabelSize) / 2))
-                        (fill perceptronLabelColor $
-                            text perceptronLabelSize (label p))
+                    : (if null (label p)
+                            then renderKnob (baseLevel p)
+                            else fill perceptronLabelColor $
+                                    text perceptronLabelSize (label p))
                     : pins ]
     renderPin :: Perceptron -> (Int, PinType) -> VectorImage
     renderPin perc (n, t) =
@@ -132,8 +129,7 @@ renderEditor md (SDL.V2 w h) sd =
     connectionToolLine :: Vector2f -> Maybe (Int, (PinType, Int, Vector2f))
                         -> VectorImage
     connectionToolLine mp (Just (_, (_, _, p))) =
-        let (pos1, pos2, pos3, pos4) = connectionControlpoints p mp
-        in  stroke connectionWidth pinColor $ bezier pos1 pos2 pos3 pos4
+        stroke connectionWidth pinColor $ line mp p
     connectionToolLine _ _ = blank
 
 -- --     -- TODO

@@ -22,7 +22,7 @@ selectionFillColor    = rgba 113 180 198 63
 pinColor              = rgba 206 201 193 255
 knobBaseColor         = rgba  46  73  81 255
 knobColor             = pinColor -- rgba 226 221 213 255
-perceptronLabelColor  = knobBaseColor
+perceptronLabelColor  = editorBackgroundColor
 
 -- Sizes
 perceptronWidth, perceptronModuleHeight, perceptronBodyRoundness, pinWidth,
@@ -37,10 +37,8 @@ knobWidth               = editorGridSizeF
 knobHeight              = editorGridSizeF / 2
 knobRoundness           = perceptronBodyRoundness / 2
 
-editorGridSize :: Int
-editorGridSize = 40
 editorGridSizeF :: Float
-editorGridSizeF = 40
+editorGridSizeF = 60
 connectorSegmentCount :: Float
 connectorSegmentCount = 20
 tuneMouseDistance :: Float

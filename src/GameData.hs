@@ -122,13 +122,18 @@ editorNetwork (GameData sd cd md) events mousePosB cameraDataB = mdo
                                          (selectionBoxB <$ emptyLeftPress))
     leftButtonDownB <- stepper False (unionWith const (True  <$ leftPress)
                                                       (False <$ leftRelease))
+    rightButtonDownB <- stepper False (unionWith const (True  <$ rightPress)
+                                                       (False <$ rightRelease))
     -- nodeKnobUnderMouse :: Behaviour (Int, Float)
-    nodeKnobUnderMouse <- stepper Nothing
+    nodeKnobUnderMouseR <- stepper Nothing
                         $ fmap (\(g, mp) -> getNodeKnobAt mp g)
                         (((,) <$> graphB <*> mousePosB) <@ rightPress)
-    connectionKnobUnderMouse <- stepper Nothing
+    connectionKnobUnderMouseR <- stepper Nothing
                         $ fmap (\(g, mp) -> getConnectionKnobAt mp g)
                         (((,) <$> graphB <*> mousePosB) <@ rightPress)
+    connectionKnobUnderMouseL <- stepper Nothing
+                        $ fmap (\(g, mp) -> getConnectionKnobAt mp g)
+                        (((,) <$> graphB <*> mousePosB) <@ leftPress)
     -- nodeUnderMouse :: Behavior (Maybe Bool) - Is there a node under the
     -- mouse, and if yes, is it among the selected ones
     nodeUnderMouse <- stepper Nothing
@@ -168,7 +173,8 @@ editorNetwork (GameData sd cd md) events mousePosB cameraDataB = mdo
                         , connectE
                         , createNodeE
                         , deleteNodesE
-                        , tuneKnobsE ]
+                        , tuneKnobsE
+                        , deleteConnectionE ]
         moveNodesE = fmap (\(ed, delta) -> moveSelectedNodes ed delta)
                           (((,) <$> editorDataB <*> dragB)
                           <@ (whenE (fmap (== Just Move) currentToolB) events))
@@ -202,26 +208,31 @@ editorNetwork (GameData sd cd md) events mousePosB cameraDataB = mdo
                 , fmap (const . collectSelectedNodes)
                         (editorDataB <@ (whenE (fmap (not . (== Nothing))
                                                      selectionRectB) events))]
+        deleteConnectionE =
+            fmap (\(g, Just (n1, n2, _)) -> deleteConnection n1 n2 g)
+            $ (((,) <$> graphB <*> connectionKnobUnderMouseL)
+                <@ (whenE (fmap (/= Nothing) connectionKnobUnderMouseL)
+                            events))
         tuneKnobsE = unionWith const tuneNodesE tuneConnectionsE
         tuneNodesE =
             fmap (\(g, Just (n, v), SDL.V2 mx my, SDL.V2 lx ly) ->
                     tunePerceptron n (clamp (-1) 1
                                         (v - ((my - ly) / tuneMouseDistance)))
                                    g)
-            $ (((,,,) <$> graphB <*> nodeKnobUnderMouse <*> mousePosB
+            $ (((,,,) <$> graphB <*> nodeKnobUnderMouseR <*> mousePosB
                       <*> lastRClickB)
                       <@ whenE (fmap (== Just Tune) currentToolB)
-                            (whenE (fmap (/= Nothing) nodeKnobUnderMouse)
+                            (whenE (fmap (/= Nothing) nodeKnobUnderMouseR)
                                 events))
         tuneConnectionsE =
             fmap (\(g, Just (n1, n2, v), SDL.V2 mx my, SDL.V2 lx ly) ->
                 tuneConnection n1 n2 (clamp (-1) 1
                                         (v - ((my - ly) / tuneMouseDistance)))
                                g)
-            $ (((,,,) <$> graphB <*> connectionKnobUnderMouse <*> mousePosB
+            $ (((,,,) <$> graphB <*> connectionKnobUnderMouseR <*> mousePosB
                       <*> lastRClickB)
                       <@ whenE (fmap (== Just Tune) currentToolB)
-                            (whenE (fmap (/= Nothing) connectionKnobUnderMouse)
+                            (whenE (fmap (/= Nothing) connectionKnobUnderMouseR)
                                 events))
         currentToolE =
             unions [ (const Nothing)        <$ leftRelease
@@ -230,7 +241,7 @@ editorNetwork (GameData sd cd md) events mousePosB cameraDataB = mdo
                    , (const (Just Move))    <$ leftPressOnNode
                    , (const (Just Select))  <$ emptyLeftPress
                    , (const (Just Tune))    <$ rightPressOnNodeKnob
-                   , (const (Just Tune))    <$ rightPressOnConnectionKnob]
+                   , (const (Just Tune))    <$ rightPressOnConnectionKnob ]
         emptyDClickE :: Event Vector2f
         emptyDClickE = fmap snd
                      . filterE (\(g, mp) ->
@@ -266,6 +277,10 @@ editorNetwork (GameData sd cd md) events mousePosB cameraDataB = mdo
             filterJust
             . fmap (\(g, mp) -> getConnectionKnobAt mp g)
             $ ((,) <$> graphB <*> mousePosB) <@ rightPress
+        leftAndRightPress :: Event InputEvent
+        leftAndRightPress =
+            unionWith const (whenE leftButtonDownB rightPress)
+                            (whenE rightButtonDownB leftPress)
         rightRelease :: Event InputEvent
         rightRelease =
             filterE

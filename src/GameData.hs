@@ -43,8 +43,6 @@ import Utils
 data Config = Config
             { getWindow     :: SDL.Window
             , getWindowSize :: Vector2i
-            -- , getRenderer   :: SDL.Renderer
-            -- , getTexture    :: SDL.Texture }
             , getGlContext  :: SDL.GLContext
             , getNvgContext :: NVG.Context }
 

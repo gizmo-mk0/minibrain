@@ -51,16 +51,10 @@ main = do
     putStrLn "Creating OpenGL context"
     glContext <- SDL.glCreateContext window
     _ <- glewInit
-    -- SDL.glMakeCurrent window glContext
     putStrLn "Creating NanoVG context"
     nvgContext <- NVG.createGL3 (S.fromList [NVG.Antialias, NVG.StencilStrokes])
     NVG.createFont nvgContext "regular"
                    (NVG.FileName "dat/Roboto-Regular.ttf")
-    -- renderer <- SDL.createRenderer window (-1) SDL.defaultRenderer
-    -- texture <- SDL.createTexture renderer SDL.ABGR8888
-    --                              SDL.TextureAccessStreaming
-    --                              (floor <$> SDL.V2 width height)
-    -- let cfg = Config window (SDL.V2 c_width c_height) renderer texture
     let cfg = Config window (SDL.V2 c_width c_height) glContext nvgContext
 
     putStrLn "Setting up input handler network"

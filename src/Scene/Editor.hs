@@ -202,7 +202,11 @@ updateSelectedNodes EditorData{..} =
     nodesWithPosition ((`elem` (map fst selectedNodes)) . fst) graph
 
 deleteSelectedNodes :: [NodeIndex] -> EditorGraph -> EditorGraph
-deleteSelectedNodes ixs g = G.delNodes ixs g
+deleteSelectedNodes ixs g = G.delNodes deleteableIxs g
+    where
+    deleteableIxs = filter (deletable . G.lab g) ixs
+    deletable Nothing  = False
+    deletable (Just p) = inputPinCount p + outputPinCount p > 1
 
 tunePerceptron :: NodeIndex -> Float -> EditorGraph -> EditorGraph
 tunePerceptron nix level = G.gmap $ \(p, v, l, s) ->

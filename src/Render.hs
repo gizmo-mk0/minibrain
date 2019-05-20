@@ -6,10 +6,7 @@ import qualified SDL
 import qualified NanoVG             as NVG
 import qualified Graphics.GL.Core32 as GL
 
-import Codec.Picture( PixelRGBA8( .. ), imageData, Image )
 import Data.Bits ((.|.))
-import qualified Data.Vector.Storable as V
-import Foreign.Marshal.Utils
 import Foreign.C.Types
 
 import Types
@@ -132,9 +129,9 @@ renderEditor md (SDL.V2 w h) sd =
         stroke connectionWidth pinColor $ line mp p
     connectionToolLine _ _ = blank
 
--- --     -- TODO
--- --     -- renderBackground :: Minibrain ()
--- --     -- renderBackground = undefined
+    -- TODO
+    -- renderBackground :: Minibrain ()
+    -- renderBackground = undefined
 
 renderSimulation :: SceneData -> VectorImage
 renderSimulation = undefined

@@ -1,20 +1,14 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards #-}
 
 module Main where
 
 import qualified SDL
-import qualified NanoVG   as NVG
-import qualified Data.Text as T
-import qualified Data.Set as S
+import qualified Data.Map  as Map
+import qualified NanoVG    as NVG
+import qualified Data.Set  as S
 
-import Control.Monad (unless, when)
-import Control.Monad.Reader (runReaderT, ask, liftIO)
-import Control.Monad.State.Strict (evalStateT, gets, modify)
-import Data.Functor.Identity
 import Data.Maybe (catMaybes, listToMaybe)
 import Data.Time.Clock.System
-import System.Exit
 
 import Reactive.Banana
 import Reactive.Banana.Frameworks
@@ -24,8 +18,8 @@ import Data.IORef
 import Scene
 import GameData
 import Input
-import Globals
 import Render
+import Types
 
 import Foreign.C.Types
 foreign import ccall unsafe "initGlew"
@@ -110,6 +104,27 @@ mainLoop cfg fires gdref = do
         
         loopIfNeeded gd $
             mainLoop' fps newT (drop 1 events) cfg (inputFire, frameFire) gdref
+
+inputEvent :: SDL.Event -> Maybe InputEvent
+inputEvent e =
+    case SDL.eventPayload e of
+        SDL.KeyboardEvent kbe -> Just $
+            KeyboardEvent (SDL.keysymKeycode (SDL.keyboardEventKeysym kbe))
+                        (SDL.keyboardEventKeyMotion kbe)
+        SDL.MouseMotionEvent mme -> Just $
+            let (SDL.P mpos) = SDL.mouseMotionEventPos mme
+            in  MouseMoveEvent (fmap fromIntegral mpos)
+        SDL.MouseButtonEvent mbe ->
+            Just $
+                MouseClickEvent (fromIntegral $ SDL.mouseButtonEventClicks mbe)
+                                (SDL.mouseButtonEventButton mbe)
+                                (SDL.mouseButtonEventMotion mbe)
+        SDL.MouseWheelEvent mwe -> Just $
+            let (SDL.V2 _ amount) = SDL.mouseWheelEventPos mwe
+            in  case SDL.mouseWheelEventDirection mwe of
+                SDL.ScrollNormal  -> MouseWheelEvent $ fromIntegral amount
+                SDL.ScrollFlipped -> MouseWheelEvent $ fromIntegral (-amount)
+        _ -> Nothing
 
 handleEvents :: IO [InputEvent]
 handleEvents = fmap (catMaybes . map inputEvent) SDL.pollEvents

@@ -1,13 +1,6 @@
 module Globals where
 
-import qualified SDL
-import GHC.Word (Word8(..))
-import Foreign.C.Types (CInt)
 import NanoVG
-
-import Types
-
--- Colors
 
 editorBackgroundColor, backgroundLines, background, perceptronBodyColor,
     selectionLineColor, selectionFillColor, pinColor,

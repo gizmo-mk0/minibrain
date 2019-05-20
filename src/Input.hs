@@ -1,36 +1,42 @@
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE RecursiveDo #-}
+
 module Input
-    ( InputEvent(..)
-    , inputEvent )
+    ( module X
+    , module Input )
     where
+--
 
 import qualified SDL
-import qualified Data.Map as Map
 
+import Reactive.Banana
+import Reactive.Banana.Combinators
+import Reactive.Banana.Frameworks
+import Data.IORef
+
+import GameData
 import Types
 
-data InputEvent = MouseMoveEvent Vector2f
-                | MouseClickEvent Int SDL.MouseButton SDL.InputMotion
-                | MouseWheelEvent Int
-                | KeyboardEvent SDL.Keycode SDL.InputMotion
-                deriving (Eq)
+import Input.Editor as X
 
-inputEvent :: SDL.Event -> Maybe InputEvent
-inputEvent e =
-    case SDL.eventPayload e of
-        SDL.KeyboardEvent kbe -> Just $
-            KeyboardEvent (SDL.keysymKeycode (SDL.keyboardEventKeysym kbe))
-                          (SDL.keyboardEventKeyMotion kbe)
-        SDL.MouseMotionEvent mme -> Just $
-            let (SDL.P mpos) = SDL.mouseMotionEventPos mme
-            in  MouseMoveEvent (fmap fromIntegral mpos)
-        SDL.MouseButtonEvent mbe ->
-            Just $
-                MouseClickEvent (fromIntegral $ SDL.mouseButtonEventClicks mbe)
-                                (SDL.mouseButtonEventButton mbe)
-                                (SDL.mouseButtonEventMotion mbe)
-        SDL.MouseWheelEvent mwe -> Just $
-            let (SDL.V2 _ amount) = SDL.mouseWheelEventPos mwe
-            in  case SDL.mouseWheelEventDirection mwe of
-                SDL.ScrollNormal  -> MouseWheelEvent $ fromIntegral amount
-                SDL.ScrollFlipped -> MouseWheelEvent $ fromIntegral (-amount)
-        _ -> Nothing
+sceneNetwork :: Config -> GameData -> IORef GameData
+             -> (AddHandler InputEvent, AddHandler ()) -> MomentIO ()
+sceneNetwork cfg gd gdref (inp, frame) = mdo
+    events      <- accumE (MouseMoveEvent (SDL.V2 0 0))
+                        (unions [fmap const inputEvents, id <$ frameEvents])
+    inputEvents <- fromAddHandler inp
+    frameEvents <- fromAddHandler frame
+    mousePosB   <- stepper (SDL.V2 0 0)
+                $ fmap (\(cData, x) -> convertPoint cData x)
+                $ (fmap (\cd' -> (,) cd') cameraDataB) <@> mouseMoveEvents
+    let quitE = filterE (== KeyboardEvent SDL.KeycodeEscape SDL.Pressed) events
+        cameraDataB = pure (cameraData gd)
+        convertPoint cameraData p =
+            toWorldCoords cameraData (getWindowSize cfg) p
+        mouseMoveEvents :: Event Vector2f
+        mouseMoveEvents = fmap (\(MouseMoveEvent x) -> x)
+                        . filterE (\case MouseMoveEvent _ -> True;
+                                         _ -> False)
+                        $ events
+    newGameData <- editorNetwork gd events mousePosB cameraDataB
+    reactimate $ fmap (writeIORef gdref) newGameData

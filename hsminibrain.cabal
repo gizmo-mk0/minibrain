@@ -23,8 +23,19 @@ executable hsminibrain
                        reactive-banana, time, astar, unordered-containers,
                        Rasterific, JuicyPixels, nanovg, gl, text
   hs-source-dirs:      src
-  other-modules:       Types, Globals, Input, Scene, Scene.Editor, Render,
-                       GameData, Utils, Scene.Simulation, Render.RenderHelper
+  other-modules:       Input.Editor,
+                       Render.RenderHelper,
+                       Scene.Editor,
+                       Scene.Simulation,
+                       GameData,
+                       Globals,
+                       Input,
+                       Render,
+                       Scene,
+                       Types,
+                       Utils
+                       -- Types, Globals, Input, Scene, Scene.Editor, Render,
+                       -- GameData, Utils, Scene.Simulation, Render.RenderHelper
   other-extensions:    DuplicateRecordFields, RecordWildCards,
                        GeneralizedNewtypeDeriving, OverloadedStrings
   default-language:    Haskell2010

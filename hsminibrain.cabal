@@ -31,8 +31,9 @@ executable hsminibrain
                        gl,
                        text
   hs-source-dirs:      src
-  other-modules:       Input.Editor,
-                       Render.RenderHelper,
+  other-modules:       Scene.Editor.Helper,
+                       Scene.Editor.Input,
+                       Scene.Editor.Render,
                        Scene.Editor,
                        Scene.Simulation,
                        GameData,

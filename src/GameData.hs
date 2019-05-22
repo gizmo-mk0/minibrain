@@ -1,11 +1,11 @@
 -- generic-lens
-{-# LANGUAGE AllowAmbiguousTypes       #-}
-{-# LANGUAGE DataKinds                 #-}
-{-# LANGUAGE DeriveGeneric             #-}
-{-# LANGUAGE DuplicateRecordFields     #-}
-{-# LANGUAGE FlexibleContexts          #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE TypeApplications          #-}
+-- {-# LANGUAGE AllowAmbiguousTypes       #-}
+-- {-# LANGUAGE DataKinds                 #-}
+-- {-# LANGUAGE DeriveGeneric             #-}
+-- {-# LANGUAGE DuplicateRecordFields     #-}
+-- {-# LANGUAGE FlexibleContexts          #-}
+-- {-# LANGUAGE NoMonomorphismRestriction #-}
+-- {-# LANGUAGE TypeApplications          #-}
 
 module GameData where
 
@@ -13,15 +13,14 @@ import qualified SDL
 import qualified NanoVG as NVG
 import qualified Linear as L
 import Control.Lens ((^.), (.~), (&))
-import Data.Generics.Product.Fields (field)
+-- import Data.Generics.Product.Fields (field)
 
 import Reactive.Banana.Combinators
-import Reactive.Banana.Frameworks
 
 import GHC.Generics (Generic)
 
-import Scene
 import Types
+import Input
 
 data Config = Config
             { getWindow     :: SDL.Window
@@ -30,10 +29,9 @@ data Config = Config
             , getNvgContext :: NVG.Context }
 
 data GameData = GameData
-              { sceneData     :: SceneData
-              , cameraData    :: CameraData
-              , mousePosBition :: Vector2f}
-              deriving (Generic)
+              { eventData :: Event InputEvent
+              , mousePosB :: Behavior Vector2f}
+            --   deriving (Generic)
 
 data CameraData = CameraData
                 { cPosition   :: Vector2f
@@ -41,9 +39,9 @@ data CameraData = CameraData
                 , cZoom       :: Float }
                 deriving (Show)
 
-data TimeData = TimeData
-              { currentTime    :: Float
-              , sinceLastFrame :: Float }
+-- data TimeData = TimeData
+--               { currentTime    :: Float
+--               , sinceLastFrame :: Float }
 
 -- cameradata windowSize position
 toWorldCoords :: CameraData -> Vector2i -> Vector2f -> Vector2f
@@ -56,20 +54,13 @@ toWorldCoords (CameraData (SDL.V2 cx cy) r z) (SDL.V2 w h) (SDL.V2 x y) =
                      $ (L.V3 x y 0)
     in  SDL.V2 lx ly
 
-changeScene :: Scene -> GameData -> GameData
-changeScene s gd = gd {sceneData = (sceneData gd) {currentScene = s}}
+-- changeScene :: Scene -> GameData -> GameData
+-- changeScene s gd = gd {sceneData = (sceneData gd) {currentScene = s}}
 
-updateSelectionRect :: GameData -> Vector2f -> GameData
-updateSelectionRect gd p =
-    gd & field @"sceneData"
-       . field @"editorData"
-       . field @"selectionRect"
-       .~ Just (Rect2f (SDL.V2 0 0) p)
+-- updateSelectionRect :: GameData -> Vector2f -> GameData
+-- updateSelectionRect gd p =
+--     gd & field @"sceneData"
+--        . field @"editorData"
+--        . field @"selectionRect"
+--        .~ Just (Rect2f (SDL.V2 0 0) p)
 
-simulationNetwork :: GameData -> Event InputEvent -> Behavior Vector2f
-                  -> Behavior CameraData
-                  -> MomentIO (Event GameData)
-simulationNetwork (GameData sd cd md) events mousePosB cameraDataB = undefined
-
--- titleNetwork = undefined
--- briefingNetwork = undefined

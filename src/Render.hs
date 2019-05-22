@@ -5,6 +5,8 @@ import qualified Data.IntMap        as Map
 import qualified SDL
 import qualified NanoVG             as NVG
 import qualified Graphics.GL.Core32 as GL
+import qualified Data.Text as T
+import qualified Data.Set  as S
 
 import Data.Bits ((.|.))
 import Foreign.C.Types
@@ -13,125 +15,131 @@ import Types
 import Globals
 import Utils
 import GameData
-import Scene
-import Render.RenderHelper
 
-renderCurrentScene :: Config -> GameData -> IO ()
-renderCurrentScene (Config window (SDL.V2 w h) glc c)
-                   (GameData sd (CameraData (SDL.V2 dx dy) rotation zoom) md)
-                   = do
-    let (NVG.Color (CFloat bg_r) (CFloat bg_g)
-                   (CFloat bg_b) (CFloat bg_a)) = editorBackgroundColor
-    GL.glClearColor bg_r bg_g bg_b bg_a
-    GL.glClear (   GL.GL_COLOR_BUFFER_BIT .|. GL.GL_DEPTH_BUFFER_BIT
-                .|. GL.GL_STENCIL_BUFFER_BIT)
-    NVG.beginFrame c (fromIntegral w) (fromIntegral h) 1
+data Winding = CW | CCW deriving (Eq)
 
-    let scene         = currentScene sd
-        sceneImage =
-            case scene of
-                Title      -> renderTitle
-                Briefing   -> renderBriefing
-                Editor     -> renderEditor md (SDL.V2 w h)
-                Simulation -> renderSimulation
-                Quit       -> const blank
-    renderImage c $ sceneImage sd
+data VectorImage = VIShape Shape
+                 | VIRenderStyle RenderStyle VectorImage
+                 | VITransform   Transform   VectorImage
+                 | VICompound    [VectorImage]
+                 | VIBlank
 
-    NVG.endFrame c
-    SDL.glSwapWindow window
+data Shape = RoundedRectangle Vector2f Float
+           | Rectangle Vector2f
+           | Circle    Float
+           | Ellipse   Vector2f
+           | Arc       Float (Float, Float) Winding
+           | Line      Vector2f Vector2f
+           | Bezier    Vector2f Vector2f Vector2f Vector2f
+           | Text      Float String
 
-    -- -- TODO make zoom relative to the screen center instead of the world center
-    -- liftIO $ G.displayPicture (w, h) (G.makeColor 0 0 0 0) s zoom
-    --        $ G.Translate dx dy
-    --        $ G.Rotate rotation
-    --        $ G.Scale zoom zoom
-    --        $ sceneGeometry
-    --        $ sd
+data RenderStyle = Fill   NVG.Color
+                 | Stroke Float NVG.Color
 
-renderTitle :: SceneData -> VectorImage
-renderTitle = undefined
+data Transform = Translate Vector2f
+               | Rotate    Float
+               | Scale     Vector2f
 
-renderBriefing :: SceneData -> VectorImage
-renderBriefing = undefined
+translate :: Vector2f -> VectorImage -> VectorImage
+translate v = VITransform (Translate v)
 
-renderEditor :: Vector2f -> Vector2i -> SceneData -> VectorImage
-renderEditor md (SDL.V2 w h) sd =
-    let perceptrons         = (getUnselectedNodes . editorData) sd
-        selectedPerceptrons = (getSelectedNodes . editorData) sd
-        connections         = (edges . editorData) sd
-        selection           = (selectionRect . editorData) sd
-        activePin           = (selectedPin . editorData) sd
-        selRectImage = case selection of
-                            Nothing      -> blank
-                            Just selRect -> renderSelection selRect
-    in compound $ selRectImage
-                : connectionToolLine md activePin
-                : map (renderPerceptron True)  selectedPerceptrons
-                ++ map (renderPerceptron False) perceptrons
-                ++ map renderConnection connections
+rotate :: Float -> VectorImage -> VectorImage
+rotate r = VITransform (Rotate r)
+
+scale :: Vector2f -> VectorImage -> VectorImage
+scale v = VITransform (Scale v)
+
+roundedRectangle :: Vector2f -> Float -> VectorImage
+roundedRectangle size r = VIShape (RoundedRectangle size r)
+
+rectangle :: Vector2f -> VectorImage
+rectangle size = VIShape (Rectangle size)
+
+circle :: Float -> VectorImage
+circle r = VIShape (Circle r)
+
+ellipse :: Vector2f -> VectorImage
+ellipse rs = VIShape (Ellipse rs)
+
+arc :: Float -> (Float, Float) -> Winding -> VectorImage
+arc r as w = VIShape (Arc r as w)
+
+line :: Vector2f -> Vector2f -> VectorImage
+line p1 p2 = VIShape (Line p1 p2)
+
+bezier :: Vector2f -> Vector2f -> Vector2f -> Vector2f -> VectorImage
+bezier p1 p2 p3 p4 = VIShape (Bezier p1 p2 p3 p4)
+
+text :: Float -> String -> VectorImage
+text size str = if null str then VIBlank else VIShape (Text size str)
+
+fill :: NVG.Color -> VectorImage -> VectorImage
+fill c = VIRenderStyle (Fill c)
+
+stroke :: Float -> NVG.Color -> VectorImage -> VectorImage
+stroke w c = VIRenderStyle (Stroke w c)
+
+compound :: [VectorImage] -> VectorImage
+compound vis = VICompound vis
+
+blank :: VectorImage
+blank = VIBlank
+
+-- A naive code generator for NanoVG
+-- It will insert one or two extra, unnecessary calls, but for my purposes it's
+-- okay.
+renderImage :: NVG.Context -> VectorImage -> IO ()
+renderImage c vi = renderImage' c [] [] vi
     where
-    renderSelection :: Rect2f -> VectorImage
-    renderSelection (Rect2f pos size) =
-        fill selectionFillColor $ stroke 1 selectionLineColor $ translate pos $
-            rectangle size
-    renderPerceptron :: Bool -> Perceptron -> VectorImage
-    renderPerceptron s p =
-        let w            = perceptronWidth
-            h            = getPerceptronHeight p
-            (SDL.V2 x y) = position p
-            body = fill (if s then perceptronBodyColor
-                              else perceptronSelectedBodyColor) $
-                        roundedRectangle (SDL.V2 w h) perceptronBodyRoundness
-            pins =
-                map (renderPin p) 
-                      (zip [0..inputPinCount p - 1] (repeat InputPin) ++
-                       zip [0..outputPinCount p - 1] (repeat OutputPin))
-        in compound
-            [ translate (SDL.V2 x y) $ compound $
-                translate (SDL.V2 (-w/2) (-h/2)) body
-                    : (if null (label p)
-                            then renderKnob (baseLevel p)
-                            else fill perceptronLabelColor $
-                                    text perceptronLabelSize (label p))
-                    : pins ]
-    renderPin :: Perceptron -> (Int, PinType) -> VectorImage
-    renderPin perc (n, t) =
-        let (SDL.V2 px py) = getPinRelativePosition perc n t
-        in  translate (SDL.V2 (px - pinWidth / 2) (py - pinHeight / 2)) $
-                fill pinColor $ rectangle (SDL.V2 pinWidth pinHeight)
-    renderKnob :: Float -> VectorImage
-    renderKnob v =
-        let arcDir    = if v > 0 then CW else CCW
-            arcDegree = 3 * pi / 2 + (v * pi / 2)
-        in  compound
-                [ translate (SDL.V2 (-knobWidth / 2) (-knobHeight / 2)) $
-                    fill knobBaseColor $
-                        roundedRectangle (SDL.V2 knobWidth knobHeight)
-                                        knobRoundness
-                , translate (SDL.V2 0 (knobWidth / 6)) $
-                    stroke (knobWidth / 6) knobColor $
-                        arc (knobWidth / 4) (3 * pi / 2, arcDegree) arcDir
-                , translate (SDL.V2 0 (-2 * knobWidth / 12)) $
-                    stroke 2 knobColor $
-                        line (SDL.V2 0 0) (SDL.V2 0 (2 * knobWidth / 12)) ]
-    renderConnection :: (Perceptron, Perceptron, Connection) -> VectorImage
-    renderConnection (p1, p2, c) =
-        let pStart = getPinAbsolutePosition p1 (srcPinNumber c) OutputPin
-            pEnd   = getPinAbsolutePosition p2 (dstPinNumber c) InputPin
-            (pos1, pos2, pos3, pos4) = connectionControlpoints pStart pEnd
-            midPoint = bezierMidPoint pStart pEnd
-        in  compound
-                [ stroke connectionWidth pinColor $ bezier pos1 pos2 pos3 pos4
-                , translate midPoint $ renderKnob (gain c) ]
-    connectionToolLine :: Vector2f -> Maybe (Int, (PinType, Int, Vector2f))
-                        -> VectorImage
-    connectionToolLine mp (Just (_, (_, _, p))) =
-        stroke connectionWidth pinColor $ line mp p
-    connectionToolLine _ _ = blank
+    renderImage' :: NVG.Context -> [Transform] -> [RenderStyle] -> VectorImage
+                 -> IO ()
+    renderImage' _ _ _ VIBlank = return ()
+    renderImage' c ts rs (VITransform t vi) = renderImage' c (t:ts) rs vi
+    renderImage' c ts rs (VIRenderStyle r vi) = renderImage' c ts (r:rs) vi
+    renderImage' c ts rs (VICompound vis) = mapM_ (renderImage' c ts rs) vis
+    renderImage' c ts rs (VIShape s) = do
+        NVG.beginPath c
+        applyTransforms c ts $ applyStyles c rs $ renderShape c s
+    renderShape :: NVG.Context -> Shape -> IO ()
+    renderShape c (RoundedRectangle (SDL.V2 w h) r) =
+        NVG.roundedRect c 0 0 (CFloat w) (CFloat h) (CFloat r)
+    renderShape c (Rectangle (SDL.V2 w h)) =
+        NVG.rect c 0 0 (CFloat w) (CFloat h)
+    renderShape c (Circle r) = NVG.circle c 0 0 (CFloat r)
+    renderShape c (Ellipse (SDL.V2 r1 r2)) =
+        NVG.ellipse c 0 0 (CFloat r1) (CFloat r2)
+    renderShape c (Arc r (a1, a2) w) = do
+        let winding = case w of
+                        CW  -> NVG.CW
+                        CCW -> NVG.CCW
+        NVG.arc c 0 0 (CFloat r) (CFloat a1) (CFloat a2) winding
+    renderShape c (Line (SDL.V2 x1 y1) (SDL.V2 x2 y2)) = do
+        NVG.moveTo c (CFloat x1) (CFloat y1)
+        NVG.lineTo c (CFloat x2) (CFloat y2)
+    renderShape c (Bezier (SDL.V2 x1 y1) (SDL.V2 x2 y2) (SDL.V2 x3 y3)
+                  (SDL.V2 x4 y4)) = do
+        NVG.moveTo c (CFloat x1) (CFloat y1)
+        NVG.bezierTo c (CFloat x2) (CFloat y2) (CFloat x3) (CFloat y3)
+                                   (CFloat x4) (CFloat y4)
+    renderShape c (Text size str) = do
+        NVG.fontSize c (CFloat size)
+        NVG.fontFace c (T.pack "regular")
+        NVG.textAlign c (S.fromList [NVG.AlignCenter, NVG.AlignMiddle])
+        NVG.text c 0 0 (T.pack str)
+    applyStyles :: NVG.Context -> [RenderStyle] -> IO () -> IO ()
+    applyStyles c ss a = foldr (applyStyle c) a ss
+    applyStyle c (Fill color) a = NVG.fillColor c color >> a >> NVG.fill c
+    applyStyle c (Stroke w color) a =
+        NVG.strokeColor c color >> NVG.strokeWidth c (CFloat w) >> a
+                                >> NVG.stroke c
+    applyTransforms :: NVG.Context -> [Transform] -> IO () -> IO ()
+    applyTransforms _ [] a = a
+    applyTransforms c (t:[]) a = applyTransform c t >> a >> NVG.resetTransform c
+    applyTransforms c (t:ts) a = applyTransform c t >> applyTransforms c ts a
+    applyTransform :: NVG.Context -> Transform -> IO ()
+    applyTransform c (Translate (SDL.V2 x y)) =
+        NVG.translate c (CFloat x) (CFloat y)
+    applyTransform c (Rotate r) = NVG.rotate c (CFloat r)
+    applyTransform c (Scale (SDL.V2 x y)) = NVG.scale c (CFloat x) (CFloat y)
 
-    -- TODO
-    -- renderBackground :: Minibrain ()
-    -- renderBackground = undefined
 
-renderSimulation :: SceneData -> VectorImage
-renderSimulation = undefined

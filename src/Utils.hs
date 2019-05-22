@@ -105,3 +105,22 @@ clamp x y n =
         min x (max y n)
     else
         min y (max x n)
+
+-- Stack
+data Stack a = Stack a [a]
+
+top :: Stack a -> a
+top = fst . pop
+
+push :: a -> Stack a -> Stack a
+push new (Stack a as) = Stack new (a:as)
+
+init :: a -> Stack a
+init = flip Stack []
+
+pop :: Stack a -> (a, Maybe (Stack a))
+pop (Stack a [])     = (a, Nothing)
+pop (Stack a (b:bs)) = (a, Just $ Stack b bs)
+
+replace :: a -> Stack a -> Stack a
+replace a (Stack _ as) = Stack a as

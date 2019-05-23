@@ -10,18 +10,17 @@ import Reactive.Banana.Frameworks (MomentIO)
 
 import Data.Maybe (isJust, fromJust)
 
-import GameData (GameData(..))
 import Scene    (StackCommand(..))
 import Types    (Vector2f, Rect2f(..))
 import Utils    (clamp)
-import Input    (InputEvent(..))
+import Input    (InputEvent(..), InputData(..))
 
 import Scene.Editor.Helper
 import Globals
 
-mkNetwork :: EditorData -> GameData 
-           -> MomentIO (Event (EditorData, StackCommand))
-mkNetwork ed' (GameData events mousePosB) = mdo
+mkNetwork :: EditorData -> InputData 
+           -> MomentIO (Event (StackCommand, EditorData))
+mkNetwork ed' (InputData events mousePosB) = mdo
     graphB <- stepper (graph ed') graphE
     selectedNodesB <- accumB [] selectedNodesE
     lastClickB <- stepper (SDL.V2 0 0) leftPressAt
@@ -204,6 +203,6 @@ mkNetwork ed' (GameData events mousePosB) = mdo
         pressedSpaceE :: Event InputEvent
         pressedSpaceE =
             filterE (== KeyboardEvent SDL.KeycodeSpace SDL.Pressed) events
-        retVal = (,) <$> editorDataB <*> stackCommandB
+        retVal = (,) <$> stackCommandB <*> editorDataB
     return (retVal <@ events)
 

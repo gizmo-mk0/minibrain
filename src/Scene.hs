@@ -13,18 +13,18 @@ import Reactive.Banana.Frameworks (MomentIO, fromAddHandler, reactimate)
 
 import Reactive.Banana
 
-import GameData (GameData(..))
-import Input    (InputEvent(..))
-import Types    (Vector2f)
-import Render   (VectorImage, blank)
+import Input  (InputEvent(..))
+import Types  (Vector2f)
+import Render (VectorImage, blank)
+import Input  (InputData(..))
 
 import Utils
 
 data Scene = Scene
-           { update :: GameData -> MomentIO (Event (Scene, StackCommand))
+           { update :: InputData -> MomentIO (Event (StackCommand, Scene))
            , render :: VectorImage }
 
-mkScene :: (GameData -> MomentIO (Event (Scene, StackCommand)))
+mkScene :: (InputData -> MomentIO (Event (StackCommand, Scene)))
         -> VectorImage -> Scene
 mkScene updateF renderF = Scene updateF renderF
 
@@ -49,12 +49,12 @@ sceneNetwork stack sref (inp, frame) = mdo
                         . filterE (\case MouseMoveEvent _ -> True;
                                          _ -> False)
                         $ events
-    sceneUpdate <- (update (top stack)) (GameData events mousePosB)
+    sceneUpdate <- (update (top stack)) (InputData events mousePosB)
     reactimate $ fmap (modifyIORef sref . uncurry updateStack) sceneUpdate
 
 -- | Update the top state on the stack
-updateStack :: Scene -> StackCommand -> Stack Scene -> Stack Scene
-updateStack newScene cmd stack =
+updateStack :: StackCommand -> Scene -> Stack Scene -> Stack Scene
+updateStack cmd newScene stack =
     case cmd of
         None      -> replace newScene stack
         Done      -> fromJust $ snd (pop stack)

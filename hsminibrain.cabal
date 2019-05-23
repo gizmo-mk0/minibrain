@@ -36,7 +36,6 @@ executable hsminibrain
                        Scene.Editor.Render,
                        Scene.Editor,
                        Scene.Simulation,
-                       GameData,
                        Globals,
                        Input,
                        Render,

@@ -1,11 +1,3 @@
--- Rewritten scene structure based on Nyx:
--- https://gitlab.com/gilmi/haskell-play
--- Useful slides:
--- https://soupi.github.io/rfc/pfgames/
--- Additional sources:
--- DinoRush: http://jxv.io/blog/2018-02-28-A-Game-in-Haskell.html
--- Game objects in haskell: https://www.gamedev.net/articles/programming/general-and-gameplay-programming/haskell-game-object-design-or-how-functions-can-get-you-apples-r3204/
-
 {-# LANGUAGE OverloadedStrings #-}
 
 module Main where
@@ -26,7 +18,7 @@ import Foreign.C.Types            (CFloat(..), CInt(..))
 
 import Scene.Editor        (mkEditor)
 import Scene.Editor.Helper (mkGraph)
-import GameData            (Config(..))
+import Types               (Config(..))
 import Input               (InputEvent, handleEvents)
 import Render              (renderImage)
 import Scene               (Scene(..), sceneNetwork, emptyScene)

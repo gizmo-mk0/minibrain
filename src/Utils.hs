@@ -1,8 +1,10 @@
 module Utils where
 
 import qualified SDL
+import qualified Linear as L
 
-import Data.Maybe (isJust)
+import Control.Lens ((^.))
+import Data.Maybe   (isJust)
 
 import Types (Vector2f, Rect2f(..))
 
@@ -125,3 +127,14 @@ pop (Stack a (b:bs)) = (a, Just $ Stack b bs)
 
 replace :: a -> Stack a -> Stack a
 replace a (Stack _ as) = Stack a as
+
+-- cameradata windowSize position
+-- toWorldCoords :: CameraData -> Vector2f -> Vector2f
+-- toWorldCoords (CameraData (SDL.V2 cx cy) r z) (SDL.V2 x y) =
+--     let (L.V2 lx ly) = (^. L._xy)
+--                      -- applying camera transformation in reverse:
+--                      . L.rotate (L.axisAngle (L.V3 0 0 1) (pi * r / 180))
+--                      . (/ (L.V3 z z z))
+--                      . (+ (L.V3 (-cx) (-cy) 0))
+--                      $ (L.V3 x y 0)
+--     in  SDL.V2 lx ly

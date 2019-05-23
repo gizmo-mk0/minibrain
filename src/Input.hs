@@ -3,7 +3,8 @@ module Input where
 
 import qualified SDL
 
-import Data.Maybe (catMaybes)
+import Data.Maybe                  (catMaybes)
+import Reactive.Banana.Combinators (Event, Behavior)
 
 import Types (Vector2f)
 
@@ -12,6 +13,10 @@ data InputEvent = MouseMoveEvent Vector2f
                 | MouseWheelEvent Int
                 | KeyboardEvent SDL.Keycode SDL.InputMotion
                 deriving (Eq)
+
+data InputData = InputData
+                { eventData :: Event InputEvent
+                , mousePosB :: Behavior Vector2f}
 
 inputEvent :: SDL.Event -> Maybe InputEvent
 inputEvent e =

@@ -6,13 +6,11 @@ import qualified NanoVG             as NVG
 import qualified Graphics.GL.Core32 as GL
 
 import Data.Bits ((.|.))
-import Foreign.C.Types
 
-import Types
+import Types (Vector2f, Vector2i, Rect2f(..))
+import Utils (connectionControlPoints, bezierMidPoint)
+
 import Globals
-import Utils
--- import GameData
--- import Scene
 import Render
 import Scene.Editor.Helper
 
@@ -81,7 +79,7 @@ renderEditor (SDL.V2 w h) ed =
     renderConnection (p1, p2, c) =
         let pStart = getPinAbsolutePosition p1 (srcPinNumber c) OutputPin
             pEnd   = getPinAbsolutePosition p2 (dstPinNumber c) InputPin
-            (pos1, pos2, pos3, pos4) = connectionControlpoints pStart pEnd
+            (pos1, pos2, pos3, pos4) = connectionControlPoints pStart pEnd
             midPoint = bezierMidPoint pStart pEnd
         in  compound
                 [ stroke connectionWidth pinColor $ bezier pos1 pos2 pos3 pos4

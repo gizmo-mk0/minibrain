@@ -6,8 +6,6 @@
 -- DinoRush: http://jxv.io/blog/2018-02-28-A-Game-in-Haskell.html
 -- Game objects in haskell: https://www.gamedev.net/articles/programming/general-and-gameplay-programming/haskell-game-object-design-or-how-functions-can-get-you-apples-r3204/
 
--- TODO cleanup the code after you are happy that somehow this works
-
 {-# LANGUAGE OverloadedStrings #-}
 
 module Main where
@@ -18,22 +16,21 @@ import qualified NanoVG    as NVG
 import qualified Data.Set  as S
 import qualified Graphics.GL.Core32 as GL
 
-import Data.Time.Clock.System
+import Data.Time.Clock.System     ( SystemTime, getSystemTime, systemSeconds
+                                  , systemNanoseconds )
+import Reactive.Banana.Frameworks (compile, actuate)
+import Control.Event.Handler      (Handler, newAddHandler)
+import Data.IORef                 (IORef, newIORef, readIORef)
+import Data.Maybe                 (listToMaybe)
+import Data.Bits                  ((.|.))
 
-import Reactive.Banana
-import Reactive.Banana.Frameworks
-import Control.Event.Handler
-import Data.IORef
-import Data.Maybe (listToMaybe)
-import Data.Bits ((.|.))
-
-import Scene.Editor (mkEditor)
+import Scene.Editor        (mkEditor)
 import Scene.Editor.Helper (mkGraph)
-import GameData
-import Input
-import Render
-import Types
-import Scene
+import GameData            (Config(..))
+import Input               (InputEvent, handleEvents)
+import Render              (renderImage)
+import Scene               (Scene(..), sceneNetwork, emptyScene)
+
 import Utils
 import Globals
 

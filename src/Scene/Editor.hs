@@ -6,10 +6,6 @@ import Scene.Editor.Input  (mkNetwork)
 import Scene.Editor.Render (renderEditor)
 import GameData            (getWindowSize)
 
--- mkScene :: (GameData -> MomentIO (Scene, StackCommand))
---         -> VectorImage -> Scene
--- mkScene updateF renderF = Scene updateF renderF
-
 mkEditor :: EditorGraph -> Scene
 mkEditor g = mkEditor' (defaultEditorData {graph = g})
 

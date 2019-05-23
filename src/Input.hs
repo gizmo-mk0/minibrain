@@ -5,7 +5,7 @@ import qualified SDL
 
 import Data.Maybe (catMaybes, listToMaybe)
 
-import Types
+import Types (Vector2f)
 
 data InputEvent = MouseMoveEvent Vector2f
                 | MouseClickEvent Int SDL.MouseButton SDL.InputMotion

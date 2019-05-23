@@ -1,6 +1,6 @@
 module Globals where
 
-import NanoVG
+import NanoVG (Color, rgba)
 
 editorBackgroundColor, backgroundLines, background, perceptronBodyColor,
     selectionLineColor, selectionFillColor, pinColor,

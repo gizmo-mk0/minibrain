@@ -3,17 +3,18 @@
 
 module Scene.Editor.Helper where
 
---
 import qualified SDL
 import qualified Data.Graph.Inductive.Graph        as G
 import qualified Data.Graph.Inductive.PatriciaTree as G
-import Data.Maybe (fromJust, listToMaybe)
-import Data.List (find)
+
+import Data.Maybe   (fromJust, listToMaybe)
+import Data.List    (find)
 import GHC.Generics (Generic)
 
-import Types
+import Types (Vector2f, Rect2f(..))
+import Utils (pointInRect, doRectsIntersect, rectAroundPosition, bezierMidPoint)
+
 import Globals
-import Utils
 
 type EditorGraph = G.Gr Perceptron Connection
 
@@ -256,8 +257,8 @@ getConnectionKnobAt :: Vector2f -> EditorGraph
 getConnectionKnobAt p g =
     let edges = G.labEdges g
         nodes = G.labNodes g
-        midPoint (n1, n2, c) = snd $
-            mkCurveWithMidpoint
+        midPoint (n1, n2, c) =
+            bezierMidPoint
                 (getPinAbsolutePosition (fromJust . (`lookup` nodes) $ n1)
                                         (srcPinNumber c) OutputPin)
                 (getPinAbsolutePosition (fromJust . (`lookup` nodes) $ n2)
@@ -266,9 +267,9 @@ getConnectionKnobAt p g =
     in  fmap (\(n1, n2, c) -> (n1, n2, gain c)) . listToMaybe
         . filter (pointInRect p . mkRect . midPoint) $ edges
 
-snapGraph :: EditorGraph -> EditorGraph
-snapGraph = G.nmap (\p -> p {position = snapTo (round editorGridSizeF)
-                                               (position p)})
+-- snapGraph :: EditorGraph -> EditorGraph
+-- snapGraph = G.nmap (\p -> p {position = snapTo (round editorGridSizeF)
+--                                                (position p)})
 
 graphSize :: EditorGraph -> Rect2f
 graphSize graph = Rect2f topLeft (bottomRight - topLeft)

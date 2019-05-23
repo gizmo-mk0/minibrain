@@ -5,19 +5,19 @@ module Scene.Editor.Input where
 
 import qualified SDL
 
-import Reactive.Banana
 import Reactive.Banana.Combinators
-import Reactive.Banana.Frameworks
+import Reactive.Banana.Frameworks (MomentIO)
 
 import Data.Maybe (maybeToList, isJust, fromJust)
 
-import GameData
-import Scene
+import GameData (GameData(..))
+import Scene    (StackCommand(..))
+import Types    (Vector2f, Rect2f(..))
+import Utils    (clamp)
+import Input    (InputEvent(..))
+
 import Scene.Editor.Helper
-import Types
 import Globals
-import Utils
-import Input
 
 mkNetwork :: EditorData -> GameData 
            -> MomentIO (Event (EditorData, StackCommand))

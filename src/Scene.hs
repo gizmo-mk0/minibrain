@@ -6,17 +6,18 @@ module Scene where
 
 import qualified SDL
 
-import Data.Maybe (fromJust)
+import Control.Event.Handler      (AddHandler)
+import Data.IORef                 (IORef, modifyIORef)
+import Data.Maybe                 (fromJust)
+import Reactive.Banana.Frameworks (MomentIO, fromAddHandler, reactimate)
 
 import Reactive.Banana
-import Reactive.Banana.Frameworks
-import Control.Event.Handler
-import Data.IORef
 
-import GameData
-import Input
-import Types
-import Render
+import GameData (GameData(..), Config)
+import Input    (InputEvent(..))
+import Types    (Vector2f)
+import Render   (VectorImage, blank)
+
 import Utils
 
 data Scene = Scene

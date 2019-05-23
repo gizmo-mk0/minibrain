@@ -1,9 +1,11 @@
 module Utils where
 
 import qualified SDL
+
 import Data.Maybe (isJust)
 
-import Types
+import Types (Vector2f, Rect2f(..))
+
 import Globals
 
 rectAroundPosition :: Vector2f -> Vector2f -> Rect2f
@@ -86,9 +88,9 @@ bezierMidPoint pos1@(SDL.V2 x1 y1) pos2@(SDL.V2 x2 y2) =
         pos4    = SDL.V2 (min xMid (x2 - xDelta)) (y2 + yOffset)
     in  cubicBezier [pos1, pos3, pos4, pos2] 0.5
 
-connectionControlpoints :: Vector2f -> Vector2f
+connectionControlPoints :: Vector2f -> Vector2f
                         -> (Vector2f, Vector2f, Vector2f, Vector2f)
-connectionControlpoints pStart pEnd =
+connectionControlPoints pStart pEnd =
     let pos1@(SDL.V2 x1 y1) = pStart
         pos2@(SDL.V2 x2 y2) = pEnd
         xMid    = (x1 + x2) / 2

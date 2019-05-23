@@ -177,7 +177,7 @@ moveNodeTo :: Vector2f -> Perceptron -> Perceptron
 moveNodeTo v p@Perceptron{..} = p {position = v}
 
 moveSelectedNodes :: EditorData -> Vector2f -> EditorGraph
-moveSelectedNodes ed@EditorData{..} vec =
+moveSelectedNodes EditorData{..} vec =
     G.gmap (\(p, v, l, s) ->
                 if v `elem` (map fst selectedNodes)
                     then (p, v, moveNodeTo (newPos v vec) l, s)
@@ -263,7 +263,7 @@ getConnectionKnobAt p g =
                                         (srcPinNumber c) OutputPin)
                 (getPinAbsolutePosition (fromJust . (`lookup` nodes) $ n2)
                                         (dstPinNumber c) InputPin)
-        mkRect p = rectAroundPosition p (SDL.V2 knobWidth knobHeight)
+        mkRect perc = rectAroundPosition perc (SDL.V2 knobWidth knobHeight)
     in  fmap (\(n1, n2, c) -> (n1, n2, gain c)) . listToMaybe
         . filter (pointInRect p . mkRect . midPoint) $ edges
 

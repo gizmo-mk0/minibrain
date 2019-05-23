@@ -3,7 +3,7 @@ module Input where
 
 import qualified SDL
 
-import Data.Maybe (catMaybes, listToMaybe)
+import Data.Maybe (catMaybes)
 
 import Types (Vector2f)
 

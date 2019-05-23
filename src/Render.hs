@@ -2,16 +2,12 @@ module Render where
 
 import qualified SDL
 import qualified NanoVG             as NVG
-import qualified Graphics.GL.Core32 as GL
 import qualified Data.Text as T
 import qualified Data.Set  as S
 
-import Data.Bits       ((.|.))
 import Foreign.C.Types (CFloat(..))
 
 import Types (Vector2f)
-
-import Globals
 
 data Winding = CW | CCW deriving (Eq)
 

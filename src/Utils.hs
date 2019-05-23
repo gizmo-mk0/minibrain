@@ -57,7 +57,7 @@ snapTo n v = fmap (snapf n) v
     where
     snapf :: Int -> Float -> Float
     snapf n x = fromIntegral
-              $ ((fromIntegral $ floor x) `div` n) * (fromIntegral n)
+              $ ((fromIntegral $ floor x) `div` n) * n
 
 cubicBezier :: [Vector2f] -> Float -> Vector2f
 cubicBezier vs t | length vs == 4 = fmap (* ((1 - t) ** 3))           (vs !! 0)
@@ -98,7 +98,6 @@ connectionControlPoints pStart pEnd =
         yOffset = if x2 < x1 then (xDelta / 2) else 0
         pos3    = SDL.V2 (max xMid (x1 + xDelta)) (y1 + yOffset)
         pos4    = SDL.V2 (min xMid (x2 - xDelta)) (y2 + yOffset)
-        midPoint = cubicBezier [pos1, pos3, pos4, pos2] 0.5
     in (pos1, pos3, pos4, pos2)
 
 clamp :: Ord a => a -> a -> a -> a

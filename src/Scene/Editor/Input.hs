@@ -8,7 +8,7 @@ import qualified SDL
 import Reactive.Banana.Combinators
 import Reactive.Banana.Frameworks (MomentIO)
 
-import Data.Maybe (maybeToList, isJust, fromJust)
+import Data.Maybe (isJust, fromJust)
 
 import GameData (GameData(..))
 import Scene    (StackCommand(..))
@@ -21,8 +21,8 @@ import Globals
 
 mkNetwork :: EditorData -> GameData 
            -> MomentIO (Event (EditorData, StackCommand))
-mkNetwork ed (GameData events mousePosB) = mdo
-    graphB <- stepper (graph ed) graphE
+mkNetwork ed' (GameData events mousePosB) = mdo
+    graphB <- stepper (graph ed') graphE
     selectedNodesB <- accumB [] selectedNodesE
     lastClickB <- stepper (SDL.V2 0 0) leftPressAt
     lastRClickB <- stepper (SDL.V2 0 0) rightPressAt
@@ -30,10 +30,6 @@ mkNetwork ed (GameData events mousePosB) = mdo
                               (unionWith const
                                         ((pure Nothing) <$ leftRelease)
                                         (selectionBoxB <$ emptyLeftPress))
-    leftButtonDownB <- stepper False (unionWith const (True  <$ leftPress)
-                                                (False <$ leftRelease))
-    rightButtonDownB <- stepper False (unionWith const (True  <$ rightPress)
-                                                (False <$ rightRelease))
     nodeKnobUnderMouseR <- stepper Nothing
                         $ fmap (\(g, mp) -> getNodeKnobAt mp g)
                         (((,) <$> graphB <*> mousePosB) <@ rightPress)
@@ -60,27 +56,13 @@ mkNetwork ed (GameData events mousePosB) = mdo
                                          isJust $ (getPinAt mp g))
                              $ ((,) <$> graphB <*> mousePosB) <@ events)
     stackCommandB <- stepper None (Done <$ pressedSpaceE)
-    let prevSceneE =
-            filterE (== KeyboardEvent SDL.KeycodeEscape SDL.Pressed) events
-        nextSceneE =
-            filterE (== KeyboardEvent SDL.KeycodeSpace SDL.Pressed) events
-        -- newGameData =
-        --     unionWith const
-        --               ((changeScene Quit (GameData sd cd md)) <$ quitE)
-        --               (gameDataB <@ events)
-        dragB = pure (-) <*> mousePosB <*> lastClickB
+    let dragB = pure (-) <*> mousePosB <*> lastClickB
         selectionBoxB = pure Just <*> (pure Rect2f <*> lastClickB <*> dragB)
         editorDataB = pure EditorData <*> graphB
                                       <*> selectionRectB
                                       <*> selectedNodesB
                                       <*> selectedPinB
                                       <*> mousePosB
-        -- gameDataB = pure GameData <*> sceneDataB <*> cameraDataB <*> mousePosB
-        -- sceneDataB = pure SceneData <*> currentSceneB -- pure (currentScene sd)
-        --                             <*> pure (titleData sd)
-        --                             <*> pure (briefingData sd)
-        --                             <*> editorDataB
-        --                             <*> pure (simulationData sd)
         graphE = foldl1 (unionWith const)
                     [ moveNodesE
                     , connectE
@@ -190,10 +172,6 @@ mkNetwork ed (GameData events mousePosB) = mdo
             filterJust
             . fmap (\(g, mp) -> getConnectionKnobAt mp g)
             $ ((,) <$> graphB <*> mousePosB) <@ rightPress
-        leftAndRightPress :: Event InputEvent
-        leftAndRightPress =
-            unionWith const (whenE leftButtonDownB rightPress)
-                            (whenE rightButtonDownB leftPress)
         rightRelease :: Event InputEvent
         rightRelease =
             filterE

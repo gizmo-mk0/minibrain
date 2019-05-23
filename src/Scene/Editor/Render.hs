@@ -1,21 +1,16 @@
 module Scene.Editor.Render where
 
-import qualified Data.IntMap        as Map
 import qualified SDL
-import qualified NanoVG             as NVG
-import qualified Graphics.GL.Core32 as GL
 
-import Data.Bits ((.|.))
-
-import Types (Vector2f, Vector2i, Rect2f(..))
+import Types (Vector2f, Rect2f(..))
 import Utils (connectionControlPoints, bezierMidPoint)
 
 import Globals
 import Render
 import Scene.Editor.Helper
 
-renderEditor :: Vector2i -> EditorData -> VectorImage
-renderEditor (SDL.V2 w h) ed =
+renderEditor :: EditorData -> VectorImage
+renderEditor ed =
     let perceptrons         = getUnselectedNodes ed
         selectedPerceptrons = getSelectedNodes ed
         connections         = edges ed
@@ -37,19 +32,19 @@ renderEditor (SDL.V2 w h) ed =
             rectangle size
     renderPerceptron :: Bool -> Perceptron -> VectorImage
     renderPerceptron s p =
-        let w            = perceptronWidth
-            h            = getPerceptronHeight p
+        let pw           = perceptronWidth
+            ph           = getPerceptronHeight p
             (SDL.V2 x y) = position p
             body = fill (if s then perceptronBodyColor
                               else perceptronSelectedBodyColor) $
-                        roundedRectangle (SDL.V2 w h) perceptronBodyRoundness
+                        roundedRectangle (SDL.V2 pw ph) perceptronBodyRoundness
             pins =
                 map (renderPin p) 
                       (zip [0..inputPinCount p - 1] (repeat InputPin) ++
                        zip [0..outputPinCount p - 1] (repeat OutputPin))
         in compound
             [ translate (SDL.V2 x y) $ compound $
-                translate (SDL.V2 (-w/2) (-h/2)) body
+                translate (SDL.V2 (-pw/2) (-ph/2)) body
                     : (if null (label p)
                             then renderKnob (baseLevel p)
                             else fill perceptronLabelColor $

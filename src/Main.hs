@@ -11,7 +11,6 @@
 module Main where
 
 import qualified SDL
-import qualified Data.Map  as Map
 import qualified NanoVG    as NVG
 import qualified Data.Set  as S
 import qualified Graphics.GL.Core32 as GL
@@ -23,6 +22,7 @@ import Control.Event.Handler      (Handler, newAddHandler)
 import Data.IORef                 (IORef, newIORef, readIORef)
 import Data.Maybe                 (listToMaybe)
 import Data.Bits                  ((.|.))
+import Foreign.C.Types            (CFloat(..), CInt(..))
 
 import Scene.Editor        (mkEditor)
 import Scene.Editor.Helper (mkGraph)
@@ -34,7 +34,6 @@ import Scene               (Scene(..), sceneNetwork, emptyScene)
 import Utils
 import Globals
 
-import Foreign.C.Types
 foreign import ccall unsafe "initGlew"
   glewInit :: IO CInt
 
@@ -56,19 +55,20 @@ main = do
                 , SDL.windowGraphicsContext =
                     SDL.OpenGLContext openGLContext })
     putStrLn "Creating OpenGL context"
-    glContext <- SDL.glCreateContext window
+    _ <- SDL.glCreateContext window
     _ <- glewInit
     putStrLn "Creating NanoVG context"
     nvgContext <- NVG.createGL3 (S.fromList [NVG.Antialias, NVG.StencilStrokes])
-    NVG.createFont nvgContext "regular"
-                   (NVG.FileName "dat/Roboto-Regular.ttf")
-    let cfg = Config window (SDL.V2 c_width c_height) glContext nvgContext
+    _ <- NVG.createFont nvgContext "regular"
+                        (NVG.FileName "dat/Roboto-Regular.ttf")
+    let cfg = Config window (SDL.V2 c_width c_height) nvgContext
 
     putStrLn "Setting up input handler network"
     (inputHandler, inputFire) <- newAddHandler -- Handler InputEvent
     (frameHandler, frameFire) <- newAddHandler -- Handler ()
     sref <- newIORef initScene
-    eNetwork <- compile (sceneNetwork cfg initScene sref (inputHandler, frameHandler))
+    eNetwork <- compile (sceneNetwork initScene sref
+                                      (inputHandler, frameHandler))
     actuate eNetwork
     putStrLn "Starting main loop"
     mainLoop cfg (inputFire, frameFire) sref
@@ -90,9 +90,9 @@ initScene = Utils.push (mkEditor (mkGraph ["foodDirection", "foodDistance"]
 
 mainLoop :: Config -> (Handler InputEvent, Handler ()) -> IORef (Stack Scene)
          -> IO ()
-mainLoop cfg fires sref = do
+mainLoop cfg' fires' sref' = do
     t <- getSystemTime
-    mainLoop' 60 t [] cfg fires sref
+    mainLoop' 60 t [] cfg' fires' sref'
     where
     mainLoop' :: Float -> SystemTime -> [InputEvent] -> Config
               -> (Handler InputEvent, Handler ()) -> IORef (Stack Scene)
@@ -120,7 +120,7 @@ mainLoop cfg fires sref = do
             mainLoop' fps newT (drop 1 events) cfg (inputFire, frameFire) sref
 
 renderScene :: Config -> Scene -> IO ()
-renderScene cfg@(Config window (SDL.V2 w h) glc c) scene = do
+renderScene (Config window (SDL.V2 w h) c) scene = do
     let (NVG.Color (CFloat bg_r) (CFloat bg_g)
                    (CFloat bg_b) (CFloat bg_a)) = editorBackgroundColor
     GL.glClearColor bg_r bg_g bg_b bg_a
@@ -128,7 +128,7 @@ renderScene cfg@(Config window (SDL.V2 w h) glc c) scene = do
                 .|. GL.GL_STENCIL_BUFFER_BIT)
     NVG.beginFrame c (fromIntegral w) (fromIntegral h) 1
 
-    renderImage c $ (render scene) cfg
+    renderImage c $ render scene
 
     NVG.endFrame c
     SDL.glSwapWindow window

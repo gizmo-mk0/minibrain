@@ -13,7 +13,7 @@ import Reactive.Banana.Frameworks (MomentIO, fromAddHandler, reactimate)
 
 import Reactive.Banana
 
-import GameData (GameData(..), Config)
+import GameData (GameData(..))
 import Input    (InputEvent(..))
 import Types    (Vector2f)
 import Render   (VectorImage, blank)
@@ -22,13 +22,13 @@ import Utils
 
 data Scene = Scene
            { update :: GameData -> MomentIO (Event (Scene, StackCommand))
-           , render :: Config -> VectorImage }
+           , render :: VectorImage }
 
 mkScene :: (GameData -> MomentIO (Event (Scene, StackCommand)))
-        -> (Config -> VectorImage) -> Scene
+        -> VectorImage -> Scene
 mkScene updateF renderF = Scene updateF renderF
 
-emptyScene = mkScene (const $ return never) (const blank)
+emptyScene = mkScene (const $ return never) blank
 
 data StackCommand = None          -- No scene change
                   | Done          -- Current scene is done, remove from stack
@@ -36,9 +36,9 @@ data StackCommand = None          -- No scene change
                   | Replace Scene -- Replace current scene with another scene
                 --   | Quit          -- Remove all scenes from stack
 
-sceneNetwork :: Config -> Stack Scene -> IORef (Stack Scene)
+sceneNetwork :: Stack Scene -> IORef (Stack Scene)
              -> (AddHandler InputEvent, AddHandler ()) -> MomentIO ()
-sceneNetwork cfg stack sref (inp, frame) = mdo
+sceneNetwork stack sref (inp, frame) = mdo
     events      <- accumE (MouseMoveEvent (SDL.V2 0 0))
                         (unions [fmap const inputEvents, id <$ frameEvents])
     inputEvents <- fromAddHandler inp

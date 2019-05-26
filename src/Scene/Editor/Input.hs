@@ -16,7 +16,7 @@ import Utils    (clamp)
 import Input    (InputEvent(..), InputData(..))
 
 import Scene.Editor.Helper
-import Globals
+import Scene.Editor.Globals
 
 mkNetwork :: EditorData -> InputData 
            -> MomentIO (Event (StackCommand, EditorData))

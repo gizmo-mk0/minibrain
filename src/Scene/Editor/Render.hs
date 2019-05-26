@@ -5,9 +5,9 @@ import qualified SDL
 import Types (Vector2f, Rect2f(..))
 import Utils (connectionControlPoints, bezierMidPoint)
 
-import Globals
 import Render
 import Scene.Editor.Helper
+import Scene.Editor.Globals
 
 renderEditor :: EditorData -> VectorImage
 renderEditor ed =

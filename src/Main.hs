@@ -18,13 +18,13 @@ import Foreign.C.Types            (CFloat(..), CInt(..))
 
 import Scene.Editor        (mkEditor)
 import Scene.Editor.Helper (mkGraph)
+import Scene.Editor.Globals (editorBackgroundColor)
 import Types               (Config(..))
 import Input               (InputEvent, handleEvents)
 import Render              (renderImage)
 import Scene               (Scene(..), sceneNetwork, emptyScene)
 
 import Utils
-import Globals
 
 foreign import ccall unsafe "initGlew"
   glewInit :: IO CInt

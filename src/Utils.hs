@@ -8,8 +8,6 @@ import Data.Maybe   (isJust)
 
 import Types (Vector2f, Rect2f(..))
 
-import Globals
-
 rectAroundPosition :: Vector2f -> Vector2f -> Rect2f
 rectAroundPosition pos size = Rect2f (pos - (size / 2)) size
 
@@ -68,18 +66,18 @@ cubicBezier vs t | length vs == 4 = fmap (* ((1 - t) ** 3))           (vs !! 0)
                              + fmap (* (t ** 3))                 (vs !! 3)
             | otherwise = error "cubicBezier called with fewer or more than 4 points"
 
-mkCurveWithMidpoint :: Vector2f -> Vector2f -> ([Vector2f], Vector2f)
-mkCurveWithMidpoint pos1@(SDL.V2 x1 y1) pos2@(SDL.V2 x2 y2) =
-    let xMid    = (x1 + x2) / 2
-        xDelta  = abs (x1 - x2)
-        yOffset = if x2 < x1 then (xDelta / 2) else 0
-        pos3    = SDL.V2 (max xMid (x1 + xDelta)) (y1 + yOffset)
-        pos4    = SDL.V2 (min xMid (x2 - xDelta)) (y2 + yOffset)
-        points  = map (cubicBezier [pos1, pos3, pos4, pos2])
-                    (map (/ connectorSegmentCount)
-                        [0..connectorSegmentCount])
-        midpoint = points !! ((length points) `div` 2)
-    in  (points, midpoint)
+-- mkCurveWithMidpoint :: Vector2f -> Vector2f -> ([Vector2f], Vector2f)
+-- mkCurveWithMidpoint pos1@(SDL.V2 x1 y1) pos2@(SDL.V2 x2 y2) =
+--     let xMid    = (x1 + x2) / 2
+--         xDelta  = abs (x1 - x2)
+--         yOffset = if x2 < x1 then (xDelta / 2) else 0
+--         pos3    = SDL.V2 (max xMid (x1 + xDelta)) (y1 + yOffset)
+--         pos4    = SDL.V2 (min xMid (x2 - xDelta)) (y2 + yOffset)
+--         points  = map (cubicBezier [pos1, pos3, pos4, pos2])
+--                     (map (/ connectorSegmentCount)
+--                         [0..connectorSegmentCount])
+--         midpoint = points !! ((length points) `div` 2)
+--     in  (points, midpoint)
 
 bezierMidPoint :: Vector2f -> Vector2f -> Vector2f
 bezierMidPoint pos1@(SDL.V2 x1 y1) pos2@(SDL.V2 x2 y2) =

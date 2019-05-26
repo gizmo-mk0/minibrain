@@ -14,7 +14,7 @@ import GHC.Generics (Generic)
 import Types (Vector2f, Rect2f(..))
 import Utils (pointInRect, doRectsIntersect, rectAroundPosition, bezierMidPoint)
 
-import Globals
+import Scene.Editor.Globals
 
 type EditorGraph = G.Gr Perceptron Connection
 
@@ -28,14 +28,18 @@ data Perceptron  = Perceptron
                  , inputPinCount  :: Int
                  , outputPinCount :: Int
                  , baseLevel      :: Float
-                 , position       :: Vector2f }
+                 , position       :: Vector2f
+                 -- For simulation:
+                 , pvalue          :: Float }
                  deriving (Show)
 
 -- The Connection stores which pin is connected to which pin
 data Connection  = Connection
                  { srcPinNumber :: PinIndex
                  , dstPinNumber :: PinIndex
-                 , gain         :: Float }
+                 , gain         :: Float
+                 -- For simulation:
+                 , cvalue        :: Float }
                  deriving (Show)
 
 data EditorData  = EditorData
@@ -61,7 +65,7 @@ testEditorData :: EditorData
 testEditorData =
     EditorData g Nothing [] Nothing (SDL.V2 0 0)
     where
-    g = mkGraph ["foodDirection", "foodDistance"] ["rotate", "move"]
+    g = mkGraph ["goalDirection", "goalDistance"] ["rotate", "move"]
 
 mkGraph :: [String] -> [String] -> EditorGraph
 mkGraph inputStrings outputStrings = foldl f G.empty list
@@ -126,7 +130,7 @@ addNodeAt' :: String -> Int -> Int -> Vector2f -> EditorGraph -> EditorGraph
 addNodeAt' l i o p g = G.insNode (ix, perc) g
     where
     ix = if G.isEmpty g then 0 else snd (G.nodeRange g) + 1
-    perc = Perceptron l i o 0 p
+    perc = Perceptron l i o 0 p 0
 
 getUnselectedNodes :: EditorData -> [Perceptron]
 getUnselectedNodes EditorData{..} =
@@ -241,8 +245,8 @@ connect :: (PinInfo, PinInfo) -> EditorGraph -> EditorGraph
 connect ((n1, (pt1, _, _)), (n2, (pt2, _, _))) graph =
     if pt1 /= pt2
         then if pt1 == OutputPin
-            then G.insEdge (n1, n2, Connection 0 0 1) graph
-            else G.insEdge (n2, n1, Connection 0 0 1) graph
+            then G.insEdge (n1, n2, Connection 0 0 1 0) graph
+            else G.insEdge (n2, n1, Connection 0 0 1 0) graph
         else graph
 
 getNodeKnobAt :: Vector2f -> EditorGraph -> Maybe (NodeIndex, Float)

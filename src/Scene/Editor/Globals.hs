@@ -1,4 +1,4 @@
-module Globals where
+module Scene.Editor.Globals where
 
 import NanoVG (Color, rgba)
 

@@ -14,10 +14,6 @@ data InputEvent = MouseMoveEvent Vector2f
                 | KeyboardEvent SDL.Keycode SDL.InputMotion
                 deriving (Eq)
 
-data InputData = InputData
-                { eventData :: Event InputEvent
-                , mousePosB :: Behavior Vector2f}
-
 inputEvent :: SDL.Event -> Maybe InputEvent
 inputEvent e =
     case SDL.eventPayload e of

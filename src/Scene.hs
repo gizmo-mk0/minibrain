@@ -6,57 +6,48 @@ module Scene where
 
 import qualified SDL
 
-import Control.Event.Handler      (AddHandler)
-import Data.IORef                 (IORef, modifyIORef)
-import Data.Maybe                 (fromJust)
-import Reactive.Banana.Frameworks (MomentIO, fromAddHandler, reactimate)
-
-import Reactive.Banana
+import Control.Event.Handler (AddHandler)
+import Data.IORef            (IORef, modifyIORef)
+import Data.Maybe            (fromJust)
+import Control.Varying.Core  (Var, arr)
+import Control.Varying.Event (Event)
 
 import Input  (InputEvent(..))
 import Types  (Vector2f)
 import Render (VectorImage, blank)
-import Input  (InputData(..))
+import Input  (InputEvent(..))
 
 import Utils
 
 data Scene = Scene
-           { update :: InputData -> MomentIO (Event (StackCommand, Scene))
+           { cmd    :: StackCommand
            , render :: VectorImage }
 
-mkScene :: (InputData -> MomentIO (Event (StackCommand, Scene)))
-        -> VectorImage -> Scene
-mkScene updateF renderF = Scene updateF renderF
+type SceneArr = Var InputEvent Scene
 
-emptyScene = mkScene (const $ return never) blank
+-- mkScene :: a -> Var InputEvent (StackCommand, Scene) -> VectorImage -> Scene
+-- mkScene sceneData = mkScene' sceneData updateScene renderScene
+--     where
+--     mkScene' sd upd = Scene updateF renderF
+--         where
+--         (newSceneData, newUpd) = runIdentity $ runVarT upd sd
+--         update = mkScene' newSceneData newUpd
+
+emptyScene :: Var (Event InputEvent) Scene
+emptyScene = arr $ const $ Scene None blank
 
 data StackCommand = None          -- No scene change
                   | Done          -- Current scene is done, remove from stack
-                  | Push Scene    -- Add scene to the stack
-                  | Replace Scene -- Replace current scene with another scene
+                  | Push (Var (Event InputEvent) Scene)    -- Add scene to the stack
+                  | Replace (Var (Event InputEvent) Scene) -- Replace current scene with another scene
                 --   | Quit          -- Remove all scenes from stack
 
-sceneNetwork :: Stack Scene -> IORef (Stack Scene)
-             -> (AddHandler InputEvent, AddHandler ()) -> MomentIO ()
-sceneNetwork stack sref (inp, frame) = mdo
-    events      <- accumE (MouseMoveEvent (SDL.V2 0 0))
-                        (unions [fmap const inputEvents, id <$ frameEvents])
-    inputEvents <- fromAddHandler inp
-    frameEvents <- fromAddHandler frame
-    mousePosB   <- stepper (SDL.V2 0 0) mouseMoveEvents
-    let mouseMoveEvents :: Event Vector2f
-        mouseMoveEvents = fmap (\(MouseMoveEvent x) -> x)
-                        . filterE (\case MouseMoveEvent _ -> True;
-                                         _ -> False)
-                        $ events
-    sceneUpdate <- (update (top stack)) (InputData events mousePosB)
-    reactimate $ fmap (modifyIORef sref . uncurry updateStack) sceneUpdate
-
 -- | Update the top state on the stack
-updateStack :: StackCommand -> Scene -> Stack Scene -> Stack Scene
-updateStack cmd newScene stack =
+updateStack :: StackCommand -> Stack (Var (Event InputEvent) Scene)
+            -> Stack (Var (Event InputEvent) Scene)
+updateStack cmd stack =
     case cmd of
-        None      -> replace newScene stack
+        None      -> stack
         Done      -> fromJust $ snd (pop stack)
         Replace s -> replace s stack
-        Push s    -> push s (replace newScene stack)
+        Push s    -> push s stack

@@ -1,3 +1,10 @@
+{-
+Since I was using continuations for scenes, I wanted to use a different input
+network at each frame. However, I couldn't figure out how to marry this
+structure with reactive-banana. But varying itself is also automaton=based, so
+it seemed like a natural fit.
+-}
+
 {-# LANGUAGE OverloadedStrings #-}
 
 module Main where
@@ -7,22 +14,26 @@ import qualified NanoVG    as NVG
 import qualified Data.Set  as S
 import qualified Graphics.GL.Core32 as GL
 
-import Data.Time.Clock.System     ( SystemTime, getSystemTime, systemSeconds
-                                  , systemNanoseconds )
-import Reactive.Banana.Frameworks (compile, actuate)
-import Control.Event.Handler      (Handler, newAddHandler)
-import Data.IORef                 (IORef, newIORef, readIORef)
-import Data.Maybe                 (listToMaybe)
-import Data.Bits                  ((.|.))
-import Foreign.C.Types            (CFloat(..), CInt(..))
+import Data.Time.Clock.System ( SystemTime, getSystemTime, systemSeconds
+                              , systemNanoseconds )
+import Control.Varying.Core   ( runVarT, Var )
+import Control.Varying.Event  ( Event, event, noevent )
+import Data.Functor.Identity  ( runIdentity )
+import Control.Event.Handler  ( Handler, newAddHandler )
+import Data.IORef             ( IORef, newIORef, readIORef )
+import Data.Maybe             ( listToMaybe )
+import Data.Bits              ( (.|.) )
+import Foreign.C.Types        ( CFloat(..), CInt(..) )
 
-import Scene.Editor        (mkEditor)
-import Scene.Editor.Helper (mkGraph)
-import Scene.Editor.Globals (editorBackgroundColor)
-import Types               (Config(..))
-import Input               (InputEvent, handleEvents)
-import Render              (renderImage)
-import Scene               (Scene(..), sceneNetwork, emptyScene)
+import Scene.Editor         ( mkEditor )
+import Scene.Simulation     ( mkSimulation )
+import Scene.Editor.Helper  ( mkGraph )
+import Scene.Editor.Globals ( editorBackgroundColor )
+import Types                ( Config(..) )
+import Input                ( InputEvent, handleEvents )
+import Render               ( renderImage )
+import Scene                ( Scene(..), emptyScene, updateStack
+                            , StackCommand(..) )
 
 import Utils
 
@@ -55,15 +66,8 @@ main = do
                         (NVG.FileName "dat/Roboto-Regular.ttf")
     let cfg = Config window (SDL.V2 c_width c_height) nvgContext
 
-    putStrLn "Setting up input handler network"
-    (inputHandler, inputFire) <- newAddHandler -- Handler InputEvent
-    (frameHandler, frameFire) <- newAddHandler -- Handler ()
-    sref <- newIORef initScene
-    eNetwork <- compile (sceneNetwork initScene sref
-                                      (inputHandler, frameHandler))
-    actuate eNetwork
     putStrLn "Starting main loop"
-    mainLoop cfg (inputFire, frameFire) sref
+    mainLoop cfg initScene
     -- Free resources
     -- Uninitialize SDL
     putStrLn "Cleaning up"
@@ -71,45 +75,56 @@ main = do
     SDL.quit
     putStrLn "Finished"
 
-loopIfNeeded :: Stack Scene -> IO () -> IO ()
-loopIfNeeded (Stack _ []) _ = return ()
-loopIfNeeded _ action = action
-
-initScene :: Stack Scene
-initScene = Utils.push (mkEditor (mkGraph ["foodDirection", "foodDistance"]
-                                          ["rotate", "move"]))
-                       $ Utils.init emptyScene 
-
-mainLoop :: Config -> (Handler InputEvent, Handler ()) -> IORef (Stack Scene)
-         -> IO ()
-mainLoop cfg' fires' sref' = do
-    t <- getSystemTime
-    mainLoop' 60 t [] cfg' fires' sref'
+initScene :: Stack (Var (Event InputEvent) Scene)
+initScene = Utils.push (mkSimulation g)
+          $ Utils.push (mkEditor g)
+          $ Utils.init emptyScene 
     where
-    mainLoop' :: Float -> SystemTime -> [InputEvent] -> Config
-              -> (Handler InputEvent, Handler ()) -> IORef (Stack Scene)
-              -> IO ()
-    mainLoop' fps t es cfg (inputFire, frameFire) sref = do
-        events <- fmap (es ++) handleEvents
-        case listToMaybe events of
-            Nothing -> frameFire () -- return ()
-            Just e  -> inputFire e
-        stack <- readIORef sref
+    g = (mkGraph ["foodDirection", "foodDistance"] ["rotate", "move"])
+
+-- TODO process more than one event per frame
+mainLoop :: Config -> Stack (Var (Event InputEvent) Scene) -> IO ()
+mainLoop cfg' stack = do
+    t <- getSystemTime
+    mainLoop' 60 t cfg' stack
+    where
+    mainLoop' :: Float -> SystemTime -> Config
+              -> Stack (Var (Event InputEvent) Scene)-> IO ()
+    mainLoop' fps t cfg stack = do
+        events <- handleEvents
         
         t' <- getSystemTime
         let nano = 1000 * 1000 * 1000
             diffSec = systemSeconds t' - systemSeconds t
             diffNanoSec =
                 (systemNanoseconds t' - systemNanoseconds t) `mod` nano
+            (newScene, newStack) = stepStack events stack
         newT <- if ((diffSec > 1) ||
                    (diffNanoSec > round (fromIntegral nano / fps)))
                     then do
-                        renderScene cfg $ top stack
+                        renderScene cfg newScene
                         return t'
                     else return t
         
-        loopIfNeeded stack $
-            mainLoop' fps newT (drop 1 events) cfg (inputFire, frameFire) sref
+        case newStack of
+            (Stack _ []) -> return ()
+            _            -> mainLoop' fps newT cfg newStack
+
+stepStack :: [InputEvent] -> Stack (Var (Event InputEvent) Scene)
+          -> (Scene, Stack (Var (Event InputEvent) Scene))
+stepStack [] s =
+    let (scene, newScene) = runIdentity $ runVarT (top s) noevent
+    in  ( scene
+        , updateStack (cmd scene) $ updateStack (Replace newScene) $ s)
+stepStack (e:[]) s =
+    let (scene, newScene) = runIdentity $ runVarT (top s) (event e)
+    in  ( scene
+        , updateStack (cmd scene) $ updateStack (Replace newScene) $ s)
+stepStack (e:es) s =
+    let (scene, newScene) = runIdentity $ runVarT (top s) (event e)
+    in  stepStack es $ updateStack (cmd scene)
+                     $ updateStack (Replace newScene)
+                     $ s
 
 renderScene :: Config -> Scene -> IO ()
 renderScene (Config window (SDL.V2 w h) c) scene = do

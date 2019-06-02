@@ -1,10 +1,3 @@
-{-
-Since I was using continuations for scenes, I wanted to use a different input
-network at each frame. However, I couldn't figure out how to marry this
-structure with reactive-banana. But varying itself is also automaton=based, so
-it seemed like a natural fit.
--}
-
 {-# LANGUAGE OverloadedStrings #-}
 
 module Main where
@@ -33,7 +26,7 @@ import Types                ( Config(..) )
 import Input                ( InputEvent, handleEvents )
 import Render               ( renderImage )
 import Scene                ( Scene(..), emptyScene, updateStack
-                            , StackCommand(..) )
+                            , StackCommand(..), isNone )
 
 import Utils
 
@@ -76,8 +69,7 @@ main = do
     putStrLn "Finished"
 
 initScene :: Stack (Var (Event InputEvent) Scene)
-initScene = Utils.push (mkSimulation g)
-          $ Utils.push (mkEditor g)
+initScene = Utils.push (mkEditor g)
           $ Utils.init emptyScene 
     where
     g = (mkGraph ["foodDirection", "foodDistance"] ["rotate", "move"])
@@ -112,19 +104,20 @@ mainLoop cfg' stack = do
 
 stepStack :: [InputEvent] -> Stack (Var (Event InputEvent) Scene)
           -> (Scene, Stack (Var (Event InputEvent) Scene))
-stepStack [] s =
-    let (scene, newScene) = runIdentity $ runVarT (top s) noevent
-    in  ( scene
-        , updateStack (cmd scene) $ updateStack (Replace newScene) $ s)
-stepStack (e:[]) s =
-    let (scene, newScene) = runIdentity $ runVarT (top s) (event e)
-    in  ( scene
-        , updateStack (cmd scene) $ updateStack (Replace newScene) $ s)
-stepStack (e:es) s =
-    let (scene, newScene) = runIdentity $ runVarT (top s) (event e)
-    in  stepStack es $ updateStack (cmd scene)
-                     $ updateStack (Replace newScene)
-                     $ s
+stepStack events s =
+    case events of
+        []     -> stepStack' noevent s
+        (e:[]) -> stepStack' (event e) s
+        (e:es) -> stepStack es $ snd $ stepStack' (event e) s
+    where
+    stepStack' :: Event InputEvent -> Stack (Var (Event InputEvent) Scene)
+               -> (Scene, Stack (Var (Event InputEvent) Scene))
+    stepStack' e s =
+        let (scene, newSceneArr) = runIdentity $ runVarT (top s) e
+        in  ( scene
+            , if isNone (cmd scene)
+                then updateStack (Replace newSceneArr) s
+                else updateStack (cmd scene) s )
 
 renderScene :: Config -> Scene -> IO ()
 renderScene (Config window (SDL.V2 w h) c) scene = do

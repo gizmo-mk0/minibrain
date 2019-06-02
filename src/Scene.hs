@@ -42,6 +42,10 @@ data StackCommand = None          -- No scene change
                   | Replace (Var (Event InputEvent) Scene) -- Replace current scene with another scene
                 --   | Quit          -- Remove all scenes from stack
 
+isNone :: StackCommand -> Bool
+isNone None = True
+isNone _    = False
+
 -- | Update the top state on the stack
 updateStack :: StackCommand -> Stack (Var (Event InputEvent) Scene)
             -> Stack (Var (Event InputEvent) Scene)

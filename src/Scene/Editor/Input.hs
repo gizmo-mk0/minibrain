@@ -7,7 +7,7 @@ import qualified SDL
 
 import Control.Varying.Core  ( Var, arr, (>>>), mkState, VarT(..), runVarT )
 import Control.Varying.Event ( Event, startWith, onlyWhenE, onTrue, onWhen
-                             , use, anyE, foldStream, onUnique, filterE )
+                             , use, anyE, foldStream, onUnique, filterE, event )
 
 import Data.Maybe ( isJust, fromJust )
 
@@ -20,14 +20,21 @@ import Scene.Editor.Helper
 import Scene.Editor.Globals
 import Scene.Editor.Render ( renderEditor )
 
+import Scene.Simulation ( mkSimulation )
+
 mkNetwork :: EditorData -> Var (Event InputEvent) Scene
 mkNetwork ed' = (,) <$> selectionRectArr <*> cmdArr
             >>> mkState (\(rect, cmd) ed ->
-                            ( Scene cmd (renderEditor ed {selectionRect = rect})
+                            ( Scene (cmd (graph ed))
+                                    (renderEditor ed {selectionRect = rect})
                             , ed ))
                         ed'
     where
-    cmdArr = use Done (pressedEsc >>> onTrue) >>> startWith None
+    cmdArr = anyE
+        [ use (const Done) (pressedEsc >>> onTrue)
+        , use (\g -> Push (mkSimulation g)) (pressedSpace >>> onTrue)
+        , pure (event $ const None)]
+        >>> startWith (const None)
 
 mousePos :: Var (Event InputEvent) Vector2f
 mousePos = foldStream applyEvent (SDL.V2 0 0)
@@ -69,6 +76,14 @@ pressedEsc =
     foldStream (\v ->
         (\case KeyboardEvent SDL.KeycodeEscape SDL.Pressed  -> True
                KeyboardEvent SDL.KeycodeEscape SDL.Released -> False
+               _ -> v))
+        False
+
+pressedSpace :: Var (Event InputEvent) Bool
+pressedSpace =
+    foldStream (\v ->
+        (\case KeyboardEvent SDL.KeycodeSpace SDL.Pressed  -> True
+               KeyboardEvent SDL.KeycodeSpace SDL.Released -> False
                _ -> v))
         False
 

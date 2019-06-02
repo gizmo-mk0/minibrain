@@ -22,7 +22,7 @@ updateRobot sd robot@(Robot pos@(SDL.V2 px py) dir brain) =
         newPos   = pos + vel * 0.01
         newBrain = updateBrain sd robot brain
     -- in  Robot newPos newDir newBrain
-    in  Robot (SDL.V2 (px + 10) py) newDir newBrain
+    in  Robot (SDL.V2 (px + 0.001) py) newDir newBrain
 
 updateBrain :: SimulationData -> Robot -> EditorGraph -> EditorGraph
 updateBrain sd robot =

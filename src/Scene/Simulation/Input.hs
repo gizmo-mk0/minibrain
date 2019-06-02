@@ -18,8 +18,19 @@ import Scene.Simulation.Globals
 import Scene.Simulation.Stepper (step)
 import Scene.Simulation.Render  (renderSimulation)
 
+-- mkNetwork :: EditorData -> Var (Event InputEvent) Scene
+-- mkNetwork ed' = (,) <$> selectionRectArr <*> cmdArr
+--             >>> mkState (\(rect, cmd) ed ->
+--                             ( Scene (cmd (graph ed))
+--                                     (renderEditor ed {selectionRect = rect})
+--                             , ed ))
+--                         ed'
+
 mkNetwork :: SimulationData -> Var (Event InputEvent) Scene
-mkNetwork sd = Scene <$> cmdArr <*> pure (renderSimulation sd)
+mkNetwork sd' = cmdArr
+            >>> mkState (\cmd sd ->
+                           (Scene cmd (renderSimulation sd), step sd))
+                        sd'
     where
     cmdArr = use Done (pressedEsc >>> onTrue) >>> startWith None
 

@@ -25,14 +25,6 @@ data Scene = Scene
 
 type SceneArr = Var InputEvent Scene
 
--- mkScene :: a -> Var InputEvent (StackCommand, Scene) -> VectorImage -> Scene
--- mkScene sceneData = mkScene' sceneData updateScene renderScene
---     where
---     mkScene' sd upd = Scene updateF renderF
---         where
---         (newSceneData, newUpd) = runIdentity $ runVarT upd sd
---         update = mkScene' newSceneData newUpd
-
 emptyScene :: Var (Event InputEvent) Scene
 emptyScene = arr $ const $ Scene None blank
 

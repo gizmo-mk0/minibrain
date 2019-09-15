@@ -136,17 +136,6 @@ emptyDLClick =
                             (first mousePos >>> var (uncurry emptyPos)
                                             >>> onTrue))
                 (var fst >>> doubleLClick >>> onTrue)
---         emptyDClickE :: Event Vector2f
---         emptyDClickE = fmap snd
---                     . filterE (\(g, mp) ->
---                                         (getNodeAt mp g == Nothing)
---                                     && (getPinAt  mp g == Nothing))
---                     $ ((,) <$> graphB <*> mousePosB) <@ doubleClickE
---         doubleClickE :: Event InputEvent
---         doubleClickE =
---             filterE (\case MouseClickEvent 2 SDL.ButtonLeft SDL.Pressed -> True
---                            _ -> False)
---                     events
 
 lastLMClickPos :: Var (Event InputEvent) Vector2f
 lastLMClickPos = mouseLBPressed >>> startWith (SDL.V2 0 0)
@@ -154,8 +143,11 @@ lastLMClickPos = mouseLBPressed >>> startWith (SDL.V2 0 0)
 lastRMClickPos :: Var (Event InputEvent) Vector2f
 lastRMClickPos = mouseRBPressed >>> startWith (SDL.V2 0 0)
 
-dragA :: Var (Event InputEvent) Vector2f
-dragA = (-) <$> mousePos <*> lastLMClickPos
+leftDragA :: Var (Event InputEvent) Vector2f
+leftDragA = (-) <$> mousePos <*> lastLMClickPos
+
+rightDragA :: Var (Event InputEvent) Vector2f
+rightDragA = (-) <$> mousePos <*> lastRMClickPos
 
 selectionRectA :: Var (Event InputEvent, EditorData) (Maybe Rect2f)
 selectionRectA =
@@ -163,7 +155,7 @@ selectionRectA =
                (currentToolA >>> var (== Just Select) >>> onTrue)            
     where
     rectA :: Var (Event InputEvent) Rect2f
-    rectA = Rect2f <$> lastLMClickPos <*> dragA
+    rectA = Rect2f <$> lastLMClickPos <*> leftDragA
 
 pressedEsc :: Var (Event InputEvent) Bool
 pressedEsc =
@@ -218,7 +210,6 @@ selectedPinA =
     bothE const (first lastLMClickPos
                     >>> var (\(mp, ed) -> getPinAt mp (graph ed)))
                 (currentToolA >>> var (== Just Connect) >>> onTrue)
-                -- (arr fst >>> mouseLBDown >>> onTrue)
 
 selectedNodesA :: Var (Event InputEvent, EditorData) [(NodeIndex, Vector2f)]
 selectedNodesA =
@@ -240,44 +231,83 @@ selectedNodesA =
          ]
     >>> startWith []
 
--- TODO
--- TODO we need to correspond various tool modes (currentToolA) with changes
--- TODO to the editorGraph (e.g. moveNodesE)
+-- TODO add ability to delete connections
 graphA :: EditorGraph -> Var (Event InputEvent, EditorData) EditorGraph
 graphA startingGraph =
-    anyE [ onlyWhenE' (first dragA >>> var (\(d, ed) -> moveSelectedNodes ed d))
+    anyE [ -- Move node
+           onlyWhenE' (first leftDragA >>> var (\(d, ed) -> moveSelectedNodes ed d))
                       (currentToolA >>> var (== Just Move) >>> onTrue)
+           -- Connect pins
          , onlyWhenE' (second (var graph)
                         >>> ((pinUnderMouseA &&& selectedPinA) &&& var snd)
                         >>> var (uncurry connect))
-                      leftReleaseOnPin
+                      (bothE const leftReleaseOnPin leftClickOnPin)
+          -- Add node
          , onlyWhenE' (first mousePos >>> var (uncurry addNodeAt . fmap graph))
                       emptyDLClick
+          -- Delete node
          , onlyWhenE' (var ((\ed -> deleteSelectedNodes
                                         (map fst (selectedNodes ed))
                                         (graph ed))
                             . snd))
                       (var fst >>> pressedDel >>> onTrue)
+          -- Tune knobs
+         , onlyWhenE' (((first ((,) <$> lastRMClickPos <*> rightDragA)
+                            >>> second (var graph)) &&& lastKnobValue)
+                                >>> var tuneNode)
+                      (currentToolA >>> var (== Just Tune) >>> onTrue)
+          -- Delete connections
+         , onlyWhenE' ((connectionKnobUnderMouse >>> var fromJust)
+                        &&& (var (graph . snd))
+                        >>> var (\((n1, n2, _), g) -> deleteConnection n1 n2 g))
+                      leftClickOnConnectionKnob
          ]
         >>> startWith startingGraph
     where
+    connectionKnobUnderMouse =
+        first lastLMClickPos
+        >>> second (var graph)
+        >>> var (\(mp, g) -> getConnectionKnobAt mp g)
+    leftClickOnConnectionKnob =
+        bothE const (var fst >>> mouseLBPressed)
+              (connectionKnobUnderMouse >>> var (/= Nothing) >>> onTrue)
+    tuneNode :: (((Vector2f, Vector2f), EditorGraph), Float) -> EditorGraph
+    tuneNode (((mp, (SDL.V2 _ dy)), g), f) =
+        case getNodeKnobAt mp g of
+            Nothing      ->
+                case getConnectionKnobAt mp g of
+                    Nothing -> g
+                    Just (n1, n2, _) ->
+                        tuneConnection n1 n2
+                                       (clamp (-1) 1
+                                              (f - dy / tuneMouseDistance))
+                                       g
+            Just (ni, _) ->
+                tunePerceptron ni (clamp (-1) 1 (f - dy / tuneMouseDistance)) g
+    lastKnobValue :: Var (Event InputEvent, EditorData) Float
+    lastKnobValue =
+        onlyWhenE' (first ((,) <$> lastRMClickPos <*> rightDragA)
+                        >>> second (var graph)
+                        >>> var (\((mp, _), g) ->
+                                    case getNodeKnobAt mp g of
+                                        Nothing ->
+                                            case getConnectionKnobAt mp g of
+                                                Nothing -> 0
+                                                Just (_, _, f) -> f
+                                        Just (_, f) -> f))
+                   (var fst >>> mouseRBPressed)
+            >>> startWith 0
     pinUnderMouseA :: Var (Event InputEvent, EditorGraph) PinInfo
     pinUnderMouseA = first mousePos >>> var (fromJust . uncurry getPinAt)
     selectedPinA :: Var (Event InputEvent, EditorGraph) PinInfo
     selectedPinA = first lastLMClickPos >>> var (fromJust . uncurry getPinAt)
+    leftClickOnPin = first lastLMClickPos
+                 >>> var (\(mp, ed) -> isJust $ getPinAt mp (graph ed))
+                 >>> onTrue
     leftReleaseOnPin = bothE const (first mousePos >>> var (\(mp, ed) ->
                                             isJust $ getPinAt mp (graph ed))
                                         >>> onTrue)
                                    (arr fst >>> mouseLBReleased)
---         graphE = foldl1 (unionWith const)
---                     [ moveNodesE
---                     , connectE
---                     , createNodeE
---                     , deleteNodesE
---                     , tuneKnobsE
---                     , deleteConnectionE ]
-
-
 
 currentToolA :: Var (Event InputEvent, EditorData) (Maybe EditorTool)
 currentToolA =
@@ -309,13 +339,13 @@ currentToolA =
                                         >>> var (\(mp, ed) ->
                                             getNodeKnobAt mp (graph ed))
                                         >>> var isJust >>> onTrue)
-                                    (arr fst >>> mouseLBPressed)
+                                    (arr fst >>> mouseRBPressed)
     rightPressOnonnectionKnob = bothE const
                                     (first lastRMClickPos
                                         >>> var (\(mp, ed) ->
                                             getConnectionKnobAt mp (graph ed))
                                         >>> var isJust >>> onTrue)
-                                    (arr fst >>> mouseLBPressed)
+                                    (arr fst >>> mouseRBPressed)
 
 -- mkNetwork :: EditorData -> InputData 
 --            -> MomentIO (Event (StackCommand, EditorData))

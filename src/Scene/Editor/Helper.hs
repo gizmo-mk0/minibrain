@@ -59,13 +59,13 @@ otherPin OutputPin = InputPin
 data EditorTool = Move | Select | Connect | Tune deriving (Eq)
 
 defaultEditorData :: EditorData
-defaultEditorData = testEditorData -- EditorData G.empty
+defaultEditorData = EditorData G.empty Nothing [] Nothing (SDL.V2 0 0)
 
-testEditorData :: EditorData
-testEditorData =
-    EditorData g Nothing [] Nothing (SDL.V2 0 0)
-    where
-    g = mkGraph ["goalDirection", "goalDistance"] ["rotate", "move"]
+-- testEditorData :: EditorData
+-- testEditorData =
+--     EditorData g Nothing [] Nothing (SDL.V2 0 0)
+--     where
+--     g = mkGraph ["goalDirection", "goalDistance"] ["rotate", "move"]
 
 mkGraph :: [String] -> [String] -> EditorGraph
 mkGraph inputStrings outputStrings = foldl f G.empty list
@@ -116,9 +116,9 @@ getPerceptronHeight n =
     where
     moduleCount = fromIntegral $ max (inputPinCount n) (outputPinCount n)
 
-addPerceptron :: EditorData -> Perceptron -> EditorData
-addPerceptron e p =
-    e {graph = G.insNode ((+1) . snd $ G.nodeRange (graph e), p) (graph e)}
+-- addPerceptron :: EditorData -> Perceptron -> EditorData
+-- addPerceptron e p =
+--     e {graph = G.insNode ((+1) . snd $ G.nodeRange (graph e), p) (graph e)}
 
 nodes :: EditorData -> [Perceptron]
 nodes EditorData{..} = map snd (G.labNodes graph)

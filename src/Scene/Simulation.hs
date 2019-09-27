@@ -14,8 +14,8 @@ import Scene.Simulation.Input (mkNetwork)
 import Scene.Simulation.Helper (SimulationData(..), Robot(..), Goal(..))
 
 mkSimulation :: EditorGraph -> Var (Event InputEvent) Scene
-mkSimulation g = mkSimulation' (SimulationData (Robot (SDL.V2 10 10) 0 g)
-                               (Goal (SDL.V2 400 400)))
+mkSimulation g = mkSimulation' (SimulationData (Robot (SDL.V2 210 200) 0 g)
+                               (Goal (SDL.V2 600 600)))
     where
     mkSimulation' :: SimulationData -> Var (Event InputEvent) Scene
     mkSimulation' sd = mkNetwork sd
